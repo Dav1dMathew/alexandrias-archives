@@ -1,0 +1,37 @@
+{
+	"schemaVersion": 1,
+	"id": "alexandriasarchives",
+	"version": "${version}",
+	"name": "Alexandria's Archives",
+	"description": "Alexandria's Archives Mod Loader Test",
+	"authors": [
+		"Python-AI Engineer: Jyotishk Ajmera",
+		"Springboot API Software Developer: Maayan Hazra",
+		"Python-AI Programmer: Akshat Bartajaya",
+		"Minecraft-Integration Developer: David Mathew"
+	],
+	"contact": {
+		"homepage": "https://thinkerthonker.net",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "MIT-License",
+	"icon": "assets/alexandrias-archives/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"net.thinkerthonker.alexandriasarchives.AlexandriaSArchives"
+		],
+		"fabric-datagen": [
+			"net.thinkerthonker.alexandriasarchives.AlexandriaSArchivesDataGenerator"
+		]
+	},
+	"mixins": [
+		"alexandrias-archives.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~1.21",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
