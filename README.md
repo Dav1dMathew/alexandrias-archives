@@ -47,6 +47,14 @@ Three services speak a shared JSON **Blueprint** contract:
 
 The mod then validates the blueprint (`BlueprintValidator`) against sane size/block-count limits, and places it into the world in rate-limited batches (`BuildJob`) so large AI-generated builds don't freeze the server.
 
+### Reconstruction tiers
+
+The AI service builds up reconstruction fidelity in tiers rather than attempting full photo-to-3D reconstruction in one leap:
+
+- **Tier 0 — Prompt → procedural generation (`POST /generate`, implemented)** — a keyword-based parser reads the prompt for a building archetype (house / tower / temple), a scale tier (mini / medium / huge), and a material, then a procedural generator produces the `Blueprint`. It's a stand-in for an LLM-based parser: same input/output shape, so swapping in a real LLM later is a drop-in change.
+- **Tier 1 — Photo → blueprint (`POST /analyze`, stubbed)** — will run photogrammetry on real building photos and voxelize the resulting mesh into blocks. Currently returns a fixed mock structure.
+- **Tier 2 — Site grounding (planned)** — ground scale/orientation using real building footprint + height data (OSM / LIDAR).
+
 ## Repository layout
 
 ```
@@ -55,8 +63,9 @@ alexandrias-archives/
 │   ├── commands/       # /aa, /aa build, /aa image, /aa history, /aa photo
 │   ├── builder/         # BlueprintValidator, StructureBuilder, BuildJob (tick-batched placement)
 │   └── model/            # Blueprint, BlueprintBlock — the shared structure format
-├── ai-service/          # Python FastAPI mock reconstruction service
-│   ├── main.py           # GET /health, POST /analyze
+├── ai-service/          # Python FastAPI reconstruction service
+│   ├── main.py           # GET /health, POST /generate (Tier 0), POST /analyze (Tier 1 stub)
+│   ├── generation/        # prompt parsing + procedural blueprint generators
 │   └── requirements.txt
 └── docs/
     └── architecture-diagram.svg
@@ -83,11 +92,11 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-Visit `http://localhost:8000/docs` for the interactive Swagger UI. `/analyze` currently returns a fixed mock `Blueprint` — real reconstruction logic lands later.
+Visit `http://localhost:8000/docs` for the interactive Swagger UI. Try `POST /generate` with `{"prompt": "a massive stone lighthouse"}` — different archetypes, scales, and materials produce genuinely different structures. `/analyze` (photo upload) still returns a fixed mock `Blueprint` until Tier 1 lands.
 
 ## Status
 
-This is an early-stage, in-progress project. The mod can validate and place a hardcoded demo structure, and the AI service returns mock data matching the shared Blueprint schema — but the mod and the AI/backend services aren't wired together yet, and the real reconstruction model doesn't exist. See the project's weekly goals for the current roadmap.
+This is an early-stage, in-progress project. The mod can validate and place a hardcoded demo structure. The AI service's Tier 0 prompt-to-blueprint generation is real and working (`/generate`), producing distinct houses, towers, and temples from free-text prompts — but the mod and the AI/backend services aren't wired together yet, `/analyze` (photo input) is still a mock, and the real photogrammetry-based reconstruction doesn't exist. See the project's weekly goals for the current roadmap.
 
 ## Team
 

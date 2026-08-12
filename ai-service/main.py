@@ -1,6 +1,8 @@
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 
+from generation import parse_prompt, generate_blueprint
+
 app = FastAPI(title="Alexandria's Archives - AI Service")
 
 
@@ -18,6 +20,10 @@ class Blueprint(BaseModel):
     height: int
     depth: int
     blocks: list[BlueprintBlock]
+
+
+class GenerateRequest(BaseModel):
+    prompt: str
 
 
 def build_mock_blueprint() -> Blueprint:
@@ -59,7 +65,17 @@ def health():
 
 @app.post("/analyze", response_model=Blueprint)
 async def analyze(file: UploadFile = File(...)):
-    # Placeholder for real reconstruction logic. For now this ignores
-    # the uploaded file's contents and returns a fixed mock blueprint
-    # so downstream services can be built against a stable contract.
+    # Placeholder for the Tier 1 (photo -> blueprint) pipeline. For now
+    # this ignores the uploaded file's contents and returns a fixed mock
+    # blueprint so downstream services can be built against a stable
+    # contract.
     return build_mock_blueprint()
+
+
+@app.post("/generate", response_model=Blueprint)
+async def generate(request: GenerateRequest):
+    # Tier 0: keyword-parsed prompt -> procedural blueprint generator.
+    # parse_prompt() stands in for an LLM call - same input/output shape,
+    # so swapping in a real LLM later doesn't change this endpoint.
+    params = parse_prompt(request.prompt)
+    return generate_blueprint(params)
