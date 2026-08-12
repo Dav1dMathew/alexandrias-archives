@@ -1,23 +1,30 @@
 package net.thinkerthonker.alexandriasarchives.commands;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.thinkerthonker.alexandriasarchives.builder.BlueprintValidator;
 import net.thinkerthonker.alexandriasarchives.builder.StructureBuilder;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
+import net.thinkerthonker.alexandriasarchives.service.AiServiceClient;
 import java.util.ArrayList;
 import java.util.List;
 
 // Handles /aa build command.
-// This class generates a hard-coded structure allowing the program to read user input
-// through their Minecraft Client, retrieve tbe Blueprint through the SpringBoot
-// preview the build before fully generating the structure in the world.
+// "/aa build demo" places a hard-coded structure so the pipeline can be
+// verified without the AI service running.
+// "/aa build <prompt>" sends the prompt to the Python AI service's
+// POST /generate endpoint (Tier 0: keyword-parsed procedural generation)
+// and builds whatever Blueprint comes back.
 public class BuildCommand {
+
+    private static final AiServiceClient AI_SERVICE_CLIENT = new AiServiceClient();
 
     private BuildCommand() {
         // Utility Class.
@@ -27,12 +34,15 @@ public class BuildCommand {
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
         return Commands.literal("build").executes(context -> {
             context.getSource().sendSuccess(
-                    () -> Component.literal("System to be added :D"),
+                    () -> Component.literal("Usage: /aa build demo | /aa build <prompt>"),
                     false
             );
             return 1;
         }).then(Commands.literal("demo").executes(context -> executeDemo(
-                context.getSource())));
+                context.getSource())
+        )).then(Commands.argument("prompt", StringArgumentType.greedyString()).executes(context ->
+                executeGenerate(context.getSource(), StringArgumentType.getString(context, "prompt"))
+        ));
     }
 
     // Temp function to generate demo structure.
@@ -53,6 +63,41 @@ public class BuildCommand {
         StructureBuilder.placeBlock(level, buildOrigin, blueprint);
         source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
                 " containing" + blueprint.getBlockCount() + " blocks."), true);
+        return 1;
+    }
+
+    // Sends the prompt to the AI service and builds the returned Blueprint.
+    // The HTTP call runs off the server thread; the response is handled back
+    // on the server thread via MinecraftServer#execute, since world edits
+    // (and sendSuccess/sendFailure) aren't safe to perform off-thread.
+    private static int executeGenerate(CommandSourceStack source, String prompt) {
+        ServerLevel level = source.getLevel();
+        MinecraftServer server = source.getServer();
+        BlockPos buildOrigin = BlockPos.containing(source.getPosition()).above();
+
+        source.sendSuccess(
+                () -> Component.literal("Sending \"" + prompt + "\" to the AI service..."),
+                false
+        );
+
+        AI_SERVICE_CLIENT.generateBlueprint(prompt).whenComplete((blueprint, error) -> server.execute(() -> {
+            if (error != null) {
+                String reason = error.getCause() != null ? error.getCause().getMessage() : error.getMessage();
+                source.sendFailure(Component.literal("Failed to generate structure: " + reason));
+                return;
+            }
+
+            BlueprintValidator.ValidationResult validation = BlueprintValidator.validate(blueprint);
+            if (!validation.valid()) {
+                source.sendFailure(Component.literal("Blueprint Validation Failed: " + validation.message()));
+                return;
+            }
+
+            StructureBuilder.placeBlock(level, buildOrigin, blueprint);
+            source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
+                    " containing " + blueprint.getBlockCount() + " blocks."), true);
+        }));
+
         return 1;
     }
 
