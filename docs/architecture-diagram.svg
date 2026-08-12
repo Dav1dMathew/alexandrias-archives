@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 660" width="1000" height="660" role="img" aria-labelledby="aa-diagram-title aa-diagram-desc">
+  <title id="aa-diagram-title">How Alexandria's Archives works</title>
+  <desc id="aa-diagram-desc">A prompt flows from the player through the Fabric mod, the Spring Boot backend and the Python AI service, returning as a Blueprint that is rendered as a 3D structure in Minecraft.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1b2a"/>
+      <stop offset="100%" stop-color="#132638"/>
+    </linearGradient>
+
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5fa8d3"/>
+    </marker>
+
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+
+    <style>
+      .node-title   { font: 700 17px "Segoe UI", Helvetica, Arial, sans-serif; fill: #f1faee; }
+      .node-sub     { font: 400 12px "Segoe UI", Helvetica, Arial, sans-serif; fill: #a8c6da; }
+      .node-icon    { font: 400 26px "Segoe UI Emoji", "Apple Color Emoji", sans-serif; }
+      .edge-label   { font: 600 12px "Consolas", "SFMono-Regular", monospace; fill: #ffd166; }
+      .headline     { font: 700 25px "Segoe UI", Helvetica, Arial, sans-serif; fill: #ffffff; }
+      .subhead      { font: 400 13px "Segoe UI", Helvetica, Arial, sans-serif; fill: #8fb3c9; }
+      .ring         { fill: none; stroke: #5fa8d3; stroke-width: 3; marker-end: url(#arrow); opacity: 0.85; }
+      .node-box     { fill: #16263a; stroke: #3f6b8a; stroke-width: 1.5; filter: url(#soft); }
+      .pill         { fill: #0d1b2a; stroke: #3f6b8a; }
+    </style>
+  </defs>
+
+  <rect x="1" y="1" width="998" height="658" rx="26" fill="url(#bg)" stroke="#264a63" stroke-width="2"/>
+
+  <text x="500" y="36" text-anchor="middle" class="headline">How Alexandria's Archives Works</text>
+  <text x="500" y="56" text-anchor="middle" class="subhead">From a player's prompt to a walkable 3D reconstruction inside Minecraft</text>
+
+  <!-- ring arcs (pentagon inscribed in circle, cx=500 cy=350 r=230) -->
+  <path id="arcA" class="ring" d="M 500,120 A 230,230 0 0 1 718.7,278.9"/>
+  <path id="arcB" class="ring" d="M 718.7,278.9 A 230,230 0 0 1 635.2,536.1"/>
+  <path id="arcC" class="ring" d="M 635.2,536.1 A 230,230 0 0 1 364.8,536.1"/>
+  <path id="arcD" class="ring" d="M 364.8,536.1 A 230,230 0 0 1 281.3,278.9"/>
+  <path id="arcE" class="ring" d="M 281.3,278.9 A 230,230 0 0 1 500,120"/>
+
+  <!-- edge labels -->
+  <g>
+    <rect class="pill" x="607.3" y="87.2" width="150" height="24" rx="12"/>
+    <text x="682.3" y="103.2" text-anchor="middle" class="edge-label">/aa build &lt;prompt&gt;</text>
+  </g>
+  <g>
+    <rect class="pill" x="667.5" y="416.8" width="150" height="24" rx="12"/>
+    <text x="742.5" y="432.8" text-anchor="middle" class="edge-label">POST :8080/analyze</text>
+  </g>
+  <g>
+    <rect class="pill" x="425" y="593" width="150" height="24" rx="12"/>
+    <text x="500" y="609" text-anchor="middle" class="edge-label">forwards to :8000</text>
+  </g>
+  <g>
+    <rect class="pill" x="173.5" y="416.8" width="168" height="24" rx="12"/>
+    <text x="257.5" y="432.8" text-anchor="middle" class="edge-label">returns Blueprint JSON</text>
+  </g>
+  <g>
+    <rect class="pill" x="247.7" y="87.2" width="140" height="24" rx="12"/>
+    <text x="317.7" y="103.2" text-anchor="middle" class="edge-label">builds &amp; explores</text>
+  </g>
+
+  <!-- nodes -->
+  <g>
+    <rect class="node-box" x="400" y="77" width="200" height="86" rx="16"/>
+    <text x="418" y="110" class="node-icon">🧑&#8205;💻</text>
+    <text x="500" y="112" text-anchor="middle" class="node-title">Player</text>
+    <text x="500" y="132" text-anchor="middle" class="node-sub">types /aa build in Minecraft</text>
+  </g>
+
+  <g>
+    <rect class="node-box" x="618.7" y="235.9" width="200" height="86" rx="16"/>
+    <text x="636.7" y="268.9" class="node-icon">🧩</text>
+    <text x="718.7" y="270.9" text-anchor="middle" class="node-title">Fabric Mod</text>
+    <text x="718.7" y="290.9" text-anchor="middle" class="node-sub">Java · sends the request</text>
+  </g>
+
+  <g>
+    <rect class="node-box" x="535.2" y="493.1" width="200" height="86" rx="16"/>
+    <text x="553.2" y="526.1" class="node-icon">☕</text>
+    <text x="635.2" y="528.1" text-anchor="middle" class="node-title">Spring Boot</text>
+    <text x="635.2" y="548.1" text-anchor="middle" class="node-sub">:8080 · orchestrator</text>
+  </g>
+
+  <g>
+    <rect class="node-box" x="264.8" y="493.1" width="200" height="86" rx="16"/>
+    <text x="282.8" y="526.1" class="node-icon">🐍</text>
+    <text x="364.8" y="528.1" text-anchor="middle" class="node-title">FastAPI AI Service</text>
+    <text x="364.8" y="548.1" text-anchor="middle" class="node-sub">:8000 · reconstruction</text>
+  </g>
+
+  <g>
+    <rect class="node-box" x="181.3" y="235.9" width="200" height="86" rx="16"/>
+    <text x="199.3" y="268.9" class="node-icon">🏛️</text>
+    <text x="281.3" y="270.9" text-anchor="middle" class="node-title">World Render</text>
+    <text x="281.3" y="290.9" text-anchor="middle" class="node-sub">Blueprint &#8594; placed blocks</text>
+  </g>
+
+  <!-- animated data packet travelling around the ring -->
+  <g>
+    <animateMotion id="m1" dur="1.1s" begin="0s;m5.end" fill="freeze">
+      <mpath href="#arcA"/>
+    </animateMotion>
+    <animateMotion id="m2" dur="1.1s" begin="m1.end" fill="freeze">
+      <mpath href="#arcB"/>
+    </animateMotion>
+    <animateMotion id="m3" dur="1.1s" begin="m2.end" fill="freeze">
+      <mpath href="#arcC"/>
+    </animateMotion>
+    <animateMotion id="m4" dur="1.1s" begin="m3.end" fill="freeze">
+      <mpath href="#arcD"/>
+    </animateMotion>
+    <animateMotion id="m5" dur="1.1s" begin="m4.end" fill="freeze">
+      <mpath href="#arcE"/>
+    </animateMotion>
+
+    <circle r="12" fill="#ffd166" opacity="0.3">
+      <animate attributeName="r" values="9;15;9" dur="0.6s" repeatCount="indefinite"/>
+    </circle>
+    <circle r="6" fill="#ffd166" stroke="#0d1b2a" stroke-width="1.5"/>
+  </g>
+</svg>
