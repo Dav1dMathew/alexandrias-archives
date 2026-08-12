@@ -93,7 +93,7 @@ This is an early-stage, in-progress project. The mod can validate and place a ha
 
 | Role | Author |
 |---|---|
-| Minecraft Integration | David Mathew |
+| Minecraft Integration Game Developer | David Mathew |
 | Spring Boot API | Maayan Hazra |
 | Python AI Engineer | Jyotishk Ajmera |
 | Python AI Programmer | Akshat Barjatya |
