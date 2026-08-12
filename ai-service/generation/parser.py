@@ -11,15 +11,28 @@ import re
 
 ARCHETYPE_KEYWORDS: dict[str, set[str]] = {
     "temple": {
+        # amphitheatres / arenas
         "colosseum", "coliseum", "amphitheater", "amphitheatre", "arena",
-        "temple", "pantheon", "forum", "coliseum", "acropolis",
+        "stadium", "hippodrome",
+        # temples / religious & ceremonial buildings
+        "temple", "pantheon", "acropolis", "shrine", "cathedral", "basilica",
+        "church", "chapel", "mosque", "synagogue", "monastery", "abbey",
+        "ziggurat", "pyramid", "mausoleum", "tomb",
+        # grand civic / government buildings
+        "forum", "palace", "capitol", "parliament", "senate", "courthouse",
+        "museum", "library", "monument", "memorial", "mansion", "villa",
+        "estate", "manor",
     },
     "tower": {
         "tower", "lighthouse", "spire", "minaret", "obelisk", "skyscraper",
-        "belltower", "campanile",
+        "belltower", "campanile", "castle", "fortress", "fort", "keep",
+        "citadel", "stronghold", "turret", "silo", "windmill", "watchtower",
+        "pagoda", "ziggurat_tower", "clocktower",
     },
     "house": {
-        "house", "cabin", "cottage", "hut", "home", "farmhouse", "cottage",
+        "house", "cabin", "cottage", "hut", "home", "farmhouse", "bungalow",
+        "shack", "lodge", "cottage", "dwelling", "shed", "barn", "inn",
+        "tavern", "hostel", "apartment", "flat", "hovel",
     },
 }
 DEFAULT_ARCHETYPE = "house"
