@@ -76,12 +76,6 @@ public class BuildCommand {
         return 1;
     }
 
-//        StructureBuilder.placeBlock(level, buildOrigin, blueprint);
-//        source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
-//                " containing" + blueprint.getBlockCount() + " blocks."), true);
-//        return 1;
-//    }
-
     // Player's active build is cancelled.
     private static int cancelBuild(CommandSourceStack source) {
         ServerPlayer player;
