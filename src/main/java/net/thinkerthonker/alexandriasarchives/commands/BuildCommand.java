@@ -4,10 +4,10 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.BlockPos;
 import net.thinkerthonker.alexandriasarchives.builder.BlueprintValidator;
-import net.thinkerthonker.alexandriasarchives.builder.StructureBuilder;
+import net.thinkerthonker.alexandriasarchives.builder.BuildManager;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
 import java.util.ArrayList;
@@ -27,38 +27,104 @@ public class BuildCommand {
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
         return Commands.literal("build").executes(context -> {
             context.getSource().sendSuccess(
-                    () -> Component.literal("System to be added :D"),
-                    false
-            );
+                    () -> Component.literal("Usage: /aa build demo | /aa build cancel | /aa build undo"),false);
             return 1;
         }).then(Commands.literal("demo").executes(context -> executeDemo(
-                context.getSource())));
+                context.getSource())))
+
+                // /aa build cancel
+                .then(Commands.literal("cancel").executes(context -> cancelBuild(
+                        context.getSource())))
+                // /aa build undo
+                .then(Commands.literal("undo").executes(context -> undoBuild(
+                        context.getSource())));
     }
 
     // Temp function to generate demo structure.
     private static int executeDemo(CommandSourceStack source) {
-        ServerLevel level = source.getLevel();
-        BlockPos playerPosition = BlockPos.containing(source.getPosition());
+        ServerPlayer player;
+        try {
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must run by a player"));
+            return 0;
+        }
 
-        // Puts structure slightly in front of or above the player's position.
-        BlockPos buildOrigin = playerPosition.above();
+        if (BuildManager.isBuilding(player)) {
+            source.sendFailure(Component.literal("You are already building something."));
+            return 0;
+        }
+
         Blueprint blueprint = createDemoBlueprint();
-
         BlueprintValidator.ValidationResult validation = BlueprintValidator.validate(blueprint);
-        if(!validation.valid()) {
+        if (!validation.valid()) {
             source.sendFailure(Component.literal("Blueprint Validation Failed: " + validation.message()));
             return 0;
         }
 
-        StructureBuilder.placeBlock(level, buildOrigin, blueprint);
-        source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
-                " containing" + blueprint.getBlockCount() + " blocks."), true);
+        // Places structure several blocks in front of player so it doesn't immediately overlap them.
+        BlockPos playerPosition = player.blockPosition();
+        BlockPos buildOrigin = playerPosition.relative(player.getDirection(), 5);
+        boolean started = BuildManager.startBuild(player, blueprint, buildOrigin);
+        if (!started) {
+            source.sendFailure(Component.literal("Build could not be started."));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Building " +
+                blueprint.getName() + "..."), true);
+        return 1;
+    }
+
+//        StructureBuilder.placeBlock(level, buildOrigin, blueprint);
+//        source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
+//                " containing" + blueprint.getBlockCount() + " blocks."), true);
+//        return 1;
+//    }
+
+    // Player's active build is cancelled.
+    private static int cancelBuild(CommandSourceStack source) {
+        ServerPlayer player;
+        try{
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must run by a player"));
+            return 0;
+        }
+
+        boolean cancelled = BuildManager.cancelBuild(player);
+        if(!cancelled) {
+            source.sendFailure(Component.literal("You don't have an active build."));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("Requesting Build Cancellation..."), false);
+        return 1;
+    }
+
+    // Player uses "Undo" command on previous completed build.
+    private static int undoBuild(CommandSourceStack source) {
+        ServerPlayer player;
+        try {
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must run by a player"));
+            return 0;
+        }
+
+        boolean undone = BuildManager.undo(player);
+        if(!undone) {
+            source.sendFailure(Component.literal("No build available to undo."));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Previous build undone."), true);
         return 1;
     }
 
     // Demo Function hard-coded for Blueprint.
-    // This function will later be replaced with a system
-    // that allows the blueprint to be received from the Python Reconstruction System.
+    // This function will later be replaced with a system that allows the blueprint
+    // to be received from the Python Reconstruction System.
     private static Blueprint createDemoBlueprint() {
         List<BlueprintBlock> blocks = new ArrayList<>();
         // Floor
@@ -93,7 +159,7 @@ public class BuildCommand {
 
         // Windows.
         blocks.add(new BlueprintBlock(new BlockPos(0, 2, 3), "minecraft:glass"));
-        return new Blueprint("week1_demo", "Alexandria's Archives Demo Structure",
+        return new Blueprint("week2_demo", "Alexandria's Archives Demo Structure",
                 7, 5, 7, blocks);
     }
 }
