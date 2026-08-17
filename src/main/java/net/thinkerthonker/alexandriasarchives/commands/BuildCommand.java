@@ -32,6 +32,10 @@ public class BuildCommand {
         }).then(Commands.literal("demo").executes(context -> executeDemo(
                 context.getSource())))
 
+                // /aa build confirm
+                .then(Commands.literal("confirm").executes(
+                        context -> confirmBuild(context.getSource())))
+
                 // /aa build cancel
                 .then(Commands.literal("cancel").executes(context -> cancelBuild(
                         context.getSource())))
@@ -50,8 +54,8 @@ public class BuildCommand {
             return 0;
         }
 
-        if (BuildManager.isBuilding(player)) {
-            source.sendFailure(Component.literal("You are already building something."));
+        if (BuildManager.hasActiveBuildOrPreview(player)) {
+            source.sendFailure(Component.literal("You are already previewing or building something."));
             return 0;
         }
 
@@ -65,34 +69,66 @@ public class BuildCommand {
         // Places structure several blocks in front of player so it doesn't immediately overlap them.
         BlockPos playerPosition = player.blockPosition();
         BlockPos buildOrigin = playerPosition.relative(player.getDirection(), 5);
-        boolean started = BuildManager.startBuild(player, blueprint, buildOrigin);
-        if (!started) {
-            source.sendFailure(Component.literal("Build could not be started."));
+        boolean started = BuildManager.startPreview(player, blueprint, buildOrigin);
+        if(!started) {
+            source.sendFailure(Component.literal("Preview could not be loaded."));
             return 0;
         }
-
-        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Building " +
-                blueprint.getName() + "..."), true);
+        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Preview Ready!"), false);
+        source.sendSuccess(() -> Component.literal("Use /aa build confirm to build."), false);
+        source.sendSuccess(() -> Component.literal("Use /aa build cancel to cancel."), false);
         return 1;
     }
 
-    // Player's active build is cancelled.
-    private static int cancelBuild(CommandSourceStack source) {
+    // Confirms current preview and starts building the actual structure.
+    private static int confirmBuild(CommandSourceStack source) {
         ServerPlayer player;
-        try{
+        try {
             player = source.getPlayerOrException();
         } catch (Exception exception) {
             source.sendFailure(Component.literal("This command must run by a player"));
             return 0;
         }
 
-        boolean cancelled = BuildManager.cancelBuild(player);
-        if(!cancelled) {
-            source.sendFailure(Component.literal("You don't have an active build."));
+        // Calls BuildManager to convert the preview into a build.
+        boolean confirmed = BuildManager.confirmPreview(player);
+        if(!confirmed) {
+            source.sendFailure(Component.literal("No active preview available."));
             return 0;
         }
 
-        source.sendSuccess(() -> Component.literal("Requesting Build Cancellation..."), false);
+        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Build Confirmed!"), true);
+        return 1;
+    }
+
+    // Player's active build is cancelled.
+    private static int cancelBuild(CommandSourceStack source) {
+        ServerPlayer player;
+        try {
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must run by a player"));
+            return 0;
+        }
+
+        boolean cancelledBuild = BuildManager.cancelBuild(player);
+        boolean cancelledPreview = false;
+        if (!cancelledBuild) {
+            cancelledPreview = BuildManager.cancelPreview(player);
+        }
+
+        if (!cancelledBuild && !cancelledPreview) {
+            source.sendFailure(Component.literal("You don't have an active preview or build."));
+            return 0;
+        }
+
+        // Tells player what was cancelled.
+        if (cancelledPreview) {
+            source.sendSuccess(() -> Component.literal("Alexandria's Archives: Preview Cancelled."), false);
+        }
+        else {
+            source.sendSuccess(() -> Component.literal("Requesting Build Cancellation..."), false);
+        }
         return 1;
     }
 
@@ -153,7 +189,7 @@ public class BuildCommand {
 
         // Windows.
         blocks.add(new BlueprintBlock(new BlockPos(0, 2, 3), "minecraft:glass"));
-        return new Blueprint("week2_demo", "Alexandria's Archives Demo Structure",
+        return new Blueprint("week3_demo", "Alexandria's Archives Demo Structure",
                 7, 5, 7, blocks);
     }
 }

@@ -24,6 +24,7 @@ public final class BuildManager {
     // Stores individual player data for each one's most recent completed build.
     // NOTE: As of Week 2 only 1 Undo level has been implemented.
     private static final Map<UUID, Map<BlockPos, BlockState>> LAST_BUILDS = new HashMap<>();
+    private static final Map<UUID, PreviewSession> PREVIEWS = new HashMap<>();
     private BuildManager() {
     }
 
@@ -79,6 +80,20 @@ public final class BuildManager {
         return true;
     }
 
+    public static boolean startPreview(ServerPlayer player, Blueprint blueprint, BlockPos origin) {
+        UUID playerID = player.getUUID();
+        if(ACTIVE_JOBS.containsKey(playerID)) {
+            return false;
+        }
+
+        PREVIEWS.put(playerID, new PreviewSession(blueprint, origin));
+        return true;
+    }
+
+    public static PreviewSession getPreview(ServerPlayer player){
+        return PREVIEWS.get(player.getUUID());
+    }
+
     // Player cancels an active build.
     public static boolean cancelBuild(ServerPlayer player) {
         BuildJob job = ACTIVE_JOBS.get(player.getUUID());
@@ -87,6 +102,20 @@ public final class BuildManager {
             return true;
         }
         return false;
+    }
+
+    public static boolean cancelPreview(ServerPlayer player) {
+        return PREVIEWS.remove(player.getUUID()) != null;
+    }
+
+    public static boolean confirmPreview(ServerPlayer player) {
+        UUID playerID = player.getUUID();
+        PreviewSession preview = PREVIEWS.remove(playerID);
+        if(preview == null) {
+            return false;
+        }
+
+        return startBuild(player, preview.getBlueprint(), preview.getOrigin());
     }
 
     // Restores the previously completed build.
@@ -110,5 +139,9 @@ public final class BuildManager {
     // Checks if Player has a build currently running.
     public static boolean isBuilding(ServerPlayer player) {
         return ACTIVE_JOBS.containsKey(player.getUUID());
+    }
+    public static boolean hasActiveBuildOrPreview(ServerPlayer player) {
+        UUID playerID = player.getUUID();
+        return ACTIVE_JOBS.containsKey(playerID) || PREVIEWS.containsKey(playerID);
     }
 }
