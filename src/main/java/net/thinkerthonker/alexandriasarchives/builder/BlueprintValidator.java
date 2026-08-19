@@ -1,11 +1,16 @@
 package net.thinkerthonker.alexandriasarchives.builder;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
+import java.util.HashSet;
+import java.util.Set;
 
 // Blueprints are validated before user can modify the Minecraft World.
+// Future blueprints will originate from the Python AI system, allowing this class
+// to act as a mediator between systems.
 // Future Version Amendments:
 // * Permission Checks
 // * Chunk Validators
@@ -47,31 +52,40 @@ public final class BlueprintValidator {
             return ValidationResult.failure("Blueprint contains too many blocks.");
         }
 
-        for(BlueprintBlock blueprintBlock: blueprint.getBlocks()) {
-            if(!blueprint.containsPosition(
-                    blueprintBlock.getPosition())) {
-                return ValidationResult.failure("Block exists outside blueprint bounds at " + blueprintBlock.getPosition());
+        Set<BlockPos> occupiedPos =  new HashSet<>();
+
+        for(BlueprintBlock block: blueprint.getBlocks()) {
+            if(block == null) {
+                return ValidationResult.failure("Blueprint contains a null block.");
             }
+
+            BlockPos position = block.getPosition();
+            if(!blueprint.containsPosition(position)) {
+                return ValidationResult.failure("Block exists outside blueprint bounds at " + position);
+            }
+
+            // Prevents same coordinate from being occupied by multiple blueprint entries.
+            if(!occupiedPos.add(position)) {
+                return ValidationResult.failure("Duplicate Block Position: " + position);
+            }
+
             ResourceLocation blockID;
             try {
-                blockID = ResourceLocation.parse(
-                        blueprintBlock.getBlockID()
-                );
-            } catch (Exception exception) {
-                return ValidationResult.failure("Invalid block identifier: " + blueprintBlock.getBlockID());
+                blockID = ResourceLocation.parse(block.getBlockID());
             }
+            catch (Exception exception) {
+                return ValidationResult.failure("Invalid block identifier: " + block.getBlockID());
+            }
+
             if(!BuiltInRegistries.BLOCK.containsKey(blockID)) {
-                return ValidationResult.failure("Unknown Minecraft Block: " + blueprintBlock.getBlockID());
+                return ValidationResult.failure("Unknown Minecraft Block: " + block.getBlockID());
             }
         }
         return ValidationResult.success();
     }
 
     // Communication of validation outcome handled via a small result object.
-    public record ValidationResult(
-            boolean valid,
-            String message
-    ) {
+    public record ValidationResult(boolean valid, String message) {
         public static ValidationResult success() {
             return new ValidationResult(true, "Valid.");
         }
