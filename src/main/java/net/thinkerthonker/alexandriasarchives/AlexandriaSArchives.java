@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.resources.ResourceLocation;
 import net.thinkerthonker.alexandriasarchives.commands.RootCommand;
 import net.thinkerthonker.alexandriasarchives.builder.BuildManager;
+import net.thinkerthonker.alexandriasarchives.network.PreviewNetworking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +27,8 @@ public class AlexandriaSArchives implements ModInitializer {
 		LOGGER.info("Alexandria's Archives Minecraft Mod");
 		LOGGER.info("===========================================");
 
+		PreviewNetworking.initialize();
+
 		CommandRegistrationCallback.EVENT.register(
 				(dispatcher, registryAccess,
 				 environment) -> RootCommand.register(dispatcher));
@@ -33,6 +36,7 @@ public class AlexandriaSArchives implements ModInitializer {
 		// Starts server-side tick system through BuildJob.
 		BuildManager.initialize();
 		LOGGER.info("Commands Successfully Registered.");
+		LOGGER.info("Preview Networking Successfully Registered.");
 		LOGGER.info("Build Manager Successfully Registered.");
 		LOGGER.info("Alexandria's Archives Successfully Loaded!");
 	}
