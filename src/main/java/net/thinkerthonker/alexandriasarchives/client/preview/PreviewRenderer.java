@@ -46,9 +46,27 @@ public final class PreviewRenderer {
         // NOTE: renderLineBox() requires a VertexConsumer, thus the appropriate buffer is obtained via MultiBufferSource.
         VertexConsumer vertexConsumer = bufferSource.getBuffer(net.minecraft.client.renderer.RenderType.lines());
 
+        // Draw every blueprint block as a wireframe ghost so the player can see the
+        // exact footprint of the proposed structure without modifying the world.
+        BlockPos[] positions = PreviewManager.getPreviewPositions();
+        for (BlockPos localPosition : positions) {
+            BlockPos worldPosition = PreviewManager.transformPosition(localPosition);
+            AABB blockBox = new AABB(
+                    worldPosition.getX() + 0.02D,
+                    worldPosition.getY() + 0.02D,
+                    worldPosition.getZ() + 0.02D,
+                    worldPosition.getX() + 0.98D,
+                    worldPosition.getY() + 0.98D,
+                    worldPosition.getZ() + 0.98D
+            );
+            LevelRenderer.renderLineBox(poseStack, vertexConsumer, blockBox, 0.25F, 0.85F, 1.0F, 0.75F);
+        }
+
+        // Bounding Box is created.
         BlockPos first = PreviewManager.transformPosition(new BlockPos(0, 0, 0));
-        BlockPos second = PreviewManager.transformPosition(new BlockPos(blueprint.getWidth(),
-                blueprint.getHeight(), blueprint.getDepth()));
+        BlockPos second = PreviewManager.transformPosition(new BlockPos(
+                blueprint.getWidth(), blueprint.getHeight(), blueprint.getDepth()
+        ));
         double minX = Math.min(first.getX(), second.getX());
         double minY = Math.min(first.getY(), second.getY());
         double minZ = Math.min(first.getZ(), second.getZ());
@@ -56,7 +74,6 @@ public final class PreviewRenderer {
         double maxY = Math.max(first.getY(), second.getY());
         double maxZ = Math.max(first.getZ(), second.getZ());
 
-        // Bounding Box is created.
         AABB box = new AABB(minX, minY, minZ, maxX, maxY, maxZ);
 
         // NOTE FOR COLLABORATORS: The basic world-space line rendering infrastructure is provided by
