@@ -32,7 +32,11 @@ from .parser import (
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "qwen2.5:3b"
-REQUEST_TIMEOUT_SECONDS = 25
+# The full extraction prompt (reasoning + 2-4 attributes + provenance +
+# lean reasoning) routinely takes qwen2.5:3b 15-25s to generate on a
+# laptop CPU/GPU - 25s was cutting it too close and caused silent,
+# hard-to-diagnose fallbacks to the keyword parser's generic default.
+REQUEST_TIMEOUT_SECONDS = 60
 
 VALID_PROVENANCE = (
     "documented", "corroborated", "inferred", "ai_generated", "unknown",
@@ -47,8 +51,10 @@ Return ONLY a single JSON object, no other text, matching exactly this shape:
   "scale_tier": one of {scales},
   "material": one of {materials},
   "lean_angle_degrees": a number from 0 to {max_lean} - ONLY nonzero if this specific \
-building is actually known to lean or tilt (e.g. the Leaning Tower of Pisa). 0 for \
-every other building, even towers, even if you are not sure.
+building is actually, famously known to lean or tilt as a defining feature, the way \
+the Leaning Tower of Pisa is famous specifically FOR leaning. A building being very \
+tall, modern, or unusually shaped is NOT the same as leaning - e.g. the Burj Khalifa \
+is extremely tall but does NOT lean, so it must get 0. When in doubt, use 0.
   "lean_direction": one of {lean_directions} - the axis it leans toward, irrelevant if \
 lean_angle_degrees is 0,
   "reasoning": "one sentence explaining the archetype/scale/lean choice",
