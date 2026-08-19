@@ -11,6 +11,8 @@ from generation import parse_prompt, parse_prompt_llm, generate_blueprint
 from generation.parser import match_archetype
 from generation.osm_lookup import lookup_real_building
 from generation.footprint_builder import build_from_footprint
+from generation.image_source import fetch_reference_image_bytes
+from generation.mosaic_builder import build_mosaic
 from generation.archetypes import _slugify
 
 app = FastAPI(title="Alexandria's Archives - AI Service")
@@ -92,14 +94,21 @@ async def analyze(file: UploadFile = File(...)):
 
 @app.post("/generate", response_model=Blueprint)
 async def generate(request: GenerateRequest):
-    # Tries real geometry first: if the prompt names an actual mapped
-    # building, OpenStreetMap (free, no API key) has its real traced
-    # footprint and often a real height - tracing that outline is
-    # genuinely accurate, not a guess between 3 templates. Falls through
-    # to the archetype system below if there's no OSM match, no traced
-    # footprint (a point-only result), or the lookup times out/fails -
-    # lookup_real_building() never raises.
-    osm_building = await asyncio.to_thread(lookup_real_building, request.prompt)
+    # Real-world lookups (OSM footprint, Wikipedia photo mosaic) only
+    # make sense when the prompt actually names a specific real subject.
+    # A confident keyword match (e.g. "a small wooden house" matching
+    # "house") means it's a generic description, not a named place - and
+    # both Nominatim's fuzzy search and Wikipedia's search will confidently
+    # return *something* for almost any query, so without this gate a
+    # totally generic prompt could get hijacked into a random building's
+    # footprint or a random article's photo instead of the reliable
+    # archetype system. Named-subject prompts (no keyword match) still
+    # try OSM -> mosaic -> archetype/LLM in that order below.
+    keyword_matched = match_archetype(request.prompt) is not None
+
+    osm_building = None if keyword_matched else await asyncio.to_thread(
+        lookup_real_building, request.prompt
+    )
     if osm_building is not None:
         material = parse_prompt(request.prompt).wall_material
         try:
@@ -140,6 +149,52 @@ async def generate(request: GenerateRequest):
                 ],
             }
 
+    # Second: a real photo, reproduced as a block-color mosaic. Doesn't
+    # guess a shape at all - it reproduces the actual photo's silhouette
+    # and color directly via Wikipedia's (free, no key) main image for
+    # the prompt. This is what actually fixes things the archetype system
+    # structurally cannot represent (a Ferris wheel's visible support
+    # structure, an unusual building) - a real image beats a parametric
+    # guess for anything that doesn't fit house/tower/temple/wheel.
+    # Flat mural, not walkable 3D - a different tradeoff from the OSM
+    # path above, not a strictly better one.
+    image_bytes = None if keyword_matched else await asyncio.to_thread(
+        fetch_reference_image_bytes, request.prompt
+    )
+    if image_bytes is not None:
+        mosaic = build_mosaic(image_bytes)
+        if mosaic is not None:
+            blocks, width, height, depth = mosaic
+            display_name = request.prompt.strip()
+            return {
+                "id": _slugify(display_name),
+                "name": display_name,
+                "width": width,
+                "height": height,
+                "depth": depth,
+                "blocks": [
+                    {"x": x, "y": y, "z": z, "blockId": block_id}
+                    for x, y, z, block_id in blocks
+                ],
+                "reasoning": (
+                    "Reproduced as a block-color mosaic from a real reference "
+                    "photo (Wikipedia) - a flat mural matching the photo's "
+                    "actual silhouette and colors, not a 3D template guess."
+                ),
+                "attributes": [
+                    {
+                        "field": "source",
+                        "value": "real photo, Wikipedia main image for this page",
+                        "provenance": "documented",
+                    },
+                    {
+                        "field": "form",
+                        "value": "flat mosaic mural, not a walkable 3D structure",
+                        "provenance": "documented",
+                    },
+                ],
+            }
+
     # Hybrid: the keyword parser is a small, fixed vocabulary but is
     # deterministic and reliable when it actually matches. The local LLM
     # (via Ollama - free, no API key) is not consistently better at
@@ -155,7 +210,6 @@ async def generate(request: GenerateRequest):
     # never raises - it returns None on any failure (Ollama not running,
     # timeout, malformed output) - so /generate always succeeds even
     # without a local model available.
-    keyword_matched = match_archetype(request.prompt) is not None
     keyword_params = parse_prompt(request.prompt)
     llm_params = await asyncio.to_thread(parse_prompt_llm, request.prompt)
 
