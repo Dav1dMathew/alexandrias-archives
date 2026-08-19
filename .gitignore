@@ -44,3 +44,9 @@ replay_*.log
 ai-service/.venv/
 ai-service/__pycache__/
 ai-service/*.egg-info/
+
+# secrets
+
+.env
+ai-service/.env
+*.env

@@ -1,23 +1,31 @@
 package net.thinkerthonker.alexandriasarchives.commands;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
 import net.thinkerthonker.alexandriasarchives.builder.BlueprintValidator;
-import net.thinkerthonker.alexandriasarchives.builder.BuildManager;
+import net.thinkerthonker.alexandriasarchives.builder.StructureBuilder;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
+import net.thinkerthonker.alexandriasarchives.service.AiServiceClient;
 import java.util.ArrayList;
 import java.util.List;
 
 // Handles /aa build command.
-// This class generates a hard-coded structure allowing the program to read user input
-// through their Minecraft Client, retrieve tbe Blueprint through the SpringBoot
-// preview the build before fully generating the structure in the world.
+// "/aa build demo" places a hard-coded structure so the pipeline can be
+// verified without the AI service running.
+// "/aa build <prompt>" sends the prompt to the Python AI service's
+// POST /generate endpoint (Tier 0: keyword-parsed procedural generation)
+// and builds whatever Blueprint comes back.
 public class BuildCommand {
+
+    private static final AiServiceClient AI_SERVICE_CLIENT = new AiServiceClient();
 
     private BuildCommand() {
         // Utility Class.
@@ -27,134 +35,102 @@ public class BuildCommand {
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
         return Commands.literal("build").executes(context -> {
             context.getSource().sendSuccess(
-                    () -> Component.literal("Usage: /aa build demo | /aa build cancel | /aa build undo"),false);
+                    () -> Component.literal("Usage: /aa build demo | /aa build <prompt>"),
+                    false
+            );
             return 1;
         }).then(Commands.literal("demo").executes(context -> executeDemo(
-                context.getSource())))
-
-                // /aa build confirm
-                .then(Commands.literal("confirm").executes(
-                        context -> confirmBuild(context.getSource())))
-
-                // /aa build cancel
-                .then(Commands.literal("cancel").executes(context -> cancelBuild(
-                        context.getSource())))
-                // /aa build undo
-                .then(Commands.literal("undo").executes(context -> undoBuild(
-                        context.getSource())));
+                context.getSource())
+        )).then(Commands.argument("prompt", StringArgumentType.greedyString()).executes(context ->
+                executeGenerate(context.getSource(), StringArgumentType.getString(context, "prompt"))
+        ));
     }
 
     // Temp function to generate demo structure.
     private static int executeDemo(CommandSourceStack source) {
-        ServerPlayer player;
-        try {
-            player = source.getPlayerOrException();
-        } catch (Exception exception) {
-            source.sendFailure(Component.literal("This command must run by a player"));
-            return 0;
-        }
+        ServerLevel level = source.getLevel();
+        BlockPos playerPosition = BlockPos.containing(source.getPosition());
 
-        if (BuildManager.hasActiveBuildOrPreview(player)) {
-            source.sendFailure(Component.literal("You are already previewing or building something."));
-            return 0;
-        }
-
+        // Puts structure slightly in front of or above the player's position.
+        BlockPos buildOrigin = playerPosition.above();
         Blueprint blueprint = createDemoBlueprint();
+
         BlueprintValidator.ValidationResult validation = BlueprintValidator.validate(blueprint);
-        if (!validation.valid()) {
+        if(!validation.valid()) {
             source.sendFailure(Component.literal("Blueprint Validation Failed: " + validation.message()));
             return 0;
         }
 
-        // Places structure several blocks in front of player so it doesn't immediately overlap them.
-        BlockPos playerPosition = player.blockPosition();
-        BlockPos buildOrigin = playerPosition.relative(player.getDirection(), 5);
-        boolean started = BuildManager.startPreview(player, blueprint, buildOrigin);
-        if(!started) {
-            source.sendFailure(Component.literal("Preview could not be loaded."));
-            return 0;
-        }
-        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Preview Ready!"), false);
-        source.sendSuccess(() -> Component.literal("Use /aa build confirm to build."), false);
-        source.sendSuccess(() -> Component.literal("Use /aa build cancel to cancel."), false);
+        clearArea(level, buildOrigin, blueprint);
+        StructureBuilder.placeBlock(level, buildOrigin, blueprint);
+        source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
+                " containing" + blueprint.getBlockCount() + " blocks."), true);
         return 1;
     }
 
-    // Confirms current preview and starts building the actual structure.
-    private static int confirmBuild(CommandSourceStack source) {
-        ServerPlayer player;
-        try {
-            player = source.getPlayerOrException();
-        } catch (Exception exception) {
-            source.sendFailure(Component.literal("This command must run by a player"));
-            return 0;
-        }
+    // Sends the prompt to the AI service and builds the returned Blueprint.
+    // The HTTP call runs off the server thread; the response is handled back
+    // on the server thread via MinecraftServer#execute, since world edits
+    // (and sendSuccess/sendFailure) aren't safe to perform off-thread.
+    private static int executeGenerate(CommandSourceStack source, String prompt) {
+        ServerLevel level = source.getLevel();
+        MinecraftServer server = source.getServer();
+        BlockPos buildOrigin = BlockPos.containing(source.getPosition()).above();
 
-        // Calls BuildManager to convert the preview into a build.
-        boolean confirmed = BuildManager.confirmPreview(player);
-        if(!confirmed) {
-            source.sendFailure(Component.literal("No active preview available."));
-            return 0;
-        }
+        source.sendSuccess(
+                () -> Component.literal("Sending \"" + prompt + "\" to the AI service..."),
+                false
+        );
 
-        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Build Confirmed!"), true);
+        AI_SERVICE_CLIENT.generateBlueprint(prompt).whenComplete((blueprint, error) -> server.execute(() -> {
+            if (error != null) {
+                String reason = error.getCause() != null ? error.getCause().getMessage() : error.getMessage();
+                source.sendFailure(Component.literal("Failed to generate structure: " + reason));
+                return;
+            }
+
+            BlueprintValidator.ValidationResult validation = BlueprintValidator.validate(blueprint);
+            if (!validation.valid()) {
+                source.sendFailure(Component.literal("Blueprint Validation Failed: " + validation.message()));
+                return;
+            }
+
+            clearArea(level, buildOrigin, blueprint);
+            StructureBuilder.placeBlock(level, buildOrigin, blueprint);
+            source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
+                    " containing " + blueprint.getBlockCount() + " blocks."), true);
+        }));
+
         return 1;
     }
 
-    // Player's active build is cancelled.
-    private static int cancelBuild(CommandSourceStack source) {
-        ServerPlayer player;
-        try {
-            player = source.getPlayerOrException();
-        } catch (Exception exception) {
-            source.sendFailure(Component.literal("This command must run by a player"));
-            return 0;
-        }
+    // Clears a volume around the build origin before placing, sized to the
+    // incoming blueprint plus a margin. Without this, repeated /aa build
+    // calls at (roughly) the same spot only overwrite the positions the
+    // *new* blueprint actually touches - anything from a previous,
+    // differently-shaped build outside that footprint is left behind as a
+    // disconnected leftover fragment. Synchronous, so a very large build
+    // (e.g. a real-world footprint reconstruction) may cause a brief
+    // pause; acceptable for how infrequently those are built.
+    private static void clearArea(ServerLevel level, BlockPos origin, Blueprint blueprint) {
+        int margin = 5;
+        int maxSize = Math.max(blueprint.getWidth(),
+                Math.max(blueprint.getHeight(), blueprint.getDepth())) + margin;
 
-        boolean cancelledBuild = BuildManager.cancelBuild(player);
-        boolean cancelledPreview = false;
-        if (!cancelledBuild) {
-            cancelledPreview = BuildManager.cancelPreview(player);
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = -margin; x < maxSize; x++) {
+            for (int y = -margin; y < maxSize; y++) {
+                for (int z = -margin; z < maxSize; z++) {
+                    cursor.set(origin.getX() + x, origin.getY() + y, origin.getZ() + z);
+                    level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 3);
+                }
+            }
         }
-
-        if (!cancelledBuild && !cancelledPreview) {
-            source.sendFailure(Component.literal("You don't have an active preview or build."));
-            return 0;
-        }
-
-        // Tells player what was cancelled.
-        if (cancelledPreview) {
-            source.sendSuccess(() -> Component.literal("Alexandria's Archives: Preview Cancelled."), false);
-        }
-        else {
-            source.sendSuccess(() -> Component.literal("Requesting Build Cancellation..."), false);
-        }
-        return 1;
-    }
-
-    // Player uses "Undo" command on previous completed build.
-    private static int undoBuild(CommandSourceStack source) {
-        ServerPlayer player;
-        try {
-            player = source.getPlayerOrException();
-        } catch (Exception exception) {
-            source.sendFailure(Component.literal("This command must run by a player"));
-            return 0;
-        }
-
-        boolean undone = BuildManager.undo(player);
-        if(!undone) {
-            source.sendFailure(Component.literal("No build available to undo."));
-            return 0;
-        }
-
-        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Previous build undone."), true);
-        return 1;
     }
 
     // Demo Function hard-coded for Blueprint.
-    // This function will later be replaced with a system that allows the blueprint
-    // to be received from the Python Reconstruction System.
+    // This function will later be replaced with a system
+    // that allows the blueprint to be received from the Python Reconstruction System.
     private static Blueprint createDemoBlueprint() {
         List<BlueprintBlock> blocks = new ArrayList<>();
         // Floor
@@ -189,7 +165,7 @@ public class BuildCommand {
 
         // Windows.
         blocks.add(new BlueprintBlock(new BlockPos(0, 2, 3), "minecraft:glass"));
-        return new Blueprint("week3_demo", "Alexandria's Archives Demo Structure",
+        return new Blueprint("week1_demo", "Alexandria's Archives Demo Structure",
                 7, 5, 7, blocks);
     }
 }

@@ -1,0 +1,144 @@
+"""Tier 0 prompt parser.
+
+Turns a free-text prompt into structured GenerationParams. This is a
+keyword-based stand-in for an LLM call: same input/output shape, so the
+matching logic in generate_blueprint() never needs to change when a real
+LLM-backed parser replaces this one.
+"""
+
+from dataclasses import dataclass
+import re
+
+ARCHETYPE_KEYWORDS: dict[str, set[str]] = {
+    "temple": {
+        # amphitheatres / arenas
+        "colosseum", "coliseum", "amphitheater", "amphitheatre", "arena",
+        "stadium", "hippodrome",
+        # temples / religious & ceremonial buildings
+        "temple", "pantheon", "acropolis", "shrine", "cathedral", "basilica",
+        "church", "chapel", "mosque", "synagogue", "monastery", "abbey",
+        "ziggurat", "pyramid", "mausoleum", "tomb",
+        # grand civic / government buildings
+        "forum", "palace", "capitol", "parliament", "senate", "courthouse",
+        "museum", "library", "monument", "memorial", "mansion", "villa",
+        "estate", "manor",
+    },
+    "tower": {
+        "tower", "lighthouse", "spire", "minaret", "obelisk", "skyscraper",
+        "belltower", "campanile", "castle", "fortress", "fort", "keep",
+        "citadel", "stronghold", "turret", "silo", "windmill", "watchtower",
+        "pagoda", "ziggurat_tower", "clocktower",
+    },
+    "house": {
+        "house", "cabin", "cottage", "hut", "home", "farmhouse", "bungalow",
+        "shack", "lodge", "cottage", "dwelling", "shed", "barn", "inn",
+        "tavern", "hostel", "apartment", "flat", "hovel",
+    },
+    "wheel": {
+        "wheel", "carousel", "ferris",
+    },
+}
+DEFAULT_ARCHETYPE = "house"
+
+SCALE_KEYWORDS: dict[str, set[str]] = {
+    "mini": {"mini", "tiny", "small", "miniature"},
+    "huge": {
+        "huge", "giant", "massive", "enormous", "megalophobia", "colossal",
+        "gigantic",
+    },
+}
+DEFAULT_SCALE = "medium"
+
+MATERIAL_KEYWORDS: dict[str, str] = {
+    "wood": "minecraft:oak_planks",
+    "wooden": "minecraft:oak_planks",
+    "timber": "minecraft:oak_planks",
+    "log": "minecraft:oak_planks",
+    "marble": "minecraft:quartz_block",
+    "white": "minecraft:quartz_block",
+    "classical": "minecraft:quartz_block",
+    "roman": "minecraft:quartz_block",
+    "greek": "minecraft:quartz_block",
+}
+DEFAULT_MATERIAL = "minecraft:stone_bricks"
+
+# The fixed set of block IDs any parser (keyword or LLM) is allowed to
+# choose - constrains free-form model output to values StructureBuilder/
+# BlueprintValidator can actually place, instead of trusting the model to
+# invent a valid Minecraft block ID.
+VALID_MATERIALS = sorted({DEFAULT_MATERIAL, *MATERIAL_KEYWORDS.values()})
+VALID_ARCHETYPES = ("house", "tower", "temple", "wheel")
+VALID_SCALE_TIERS = ("mini", "medium", "huge")
+VALID_LEAN_DIRECTIONS = ("x", "z")
+# Clamp: a real-world lean beyond this looks absurd and blows up the
+# bounding box (offset grows with height * tan(angle)).
+MAX_LEAN_DEGREES = 15.0
+
+# Tower shape - the actual silhouette, not just a resized box.
+VALID_CROSS_SECTIONS = ("square", "circular", "y_shape")
+DEFAULT_CROSS_SECTION = "square"
+
+
+@dataclass
+class GenerationParams:
+    archetype: str
+    scale_tier: str
+    wall_material: str
+    prompt: str
+    # Populated only by the LLM-backed parser (llm_parser.py). None here
+    # means "keyword-matched, no per-attribute provenance available."
+    reasoning: str | None = None
+    attributes: list[dict] | None = None
+    # Real geometric parameters, not just archetype selection - e.g. the
+    # Leaning Tower of Pisa's actual lean, not a generic tower. Only
+    # meaningful for the "tower" archetype today; 0.0/"x" is a no-op lean
+    # for everything else.
+    lean_angle_degrees: float = 0.0
+    lean_direction: str = "x"
+    # Tower silhouette. cross_section changes the actual footprint shape
+    # per layer (square/circular/tri-lobed "Y", the Burj Khalifa's real
+    # defining feature); taper_ratio shrinks the footprint from base to
+    # top (0 = no taper, 0.8 = nearly a point); setback_tiers > 0 makes
+    # that shrink happen in discrete steps instead of smoothly.
+    cross_section: str = "square"
+    taper_ratio: float = 0.0
+    setback_tiers: int = 0
+
+
+def _tokenize(prompt: str) -> set[str]:
+    return set(re.findall(r"[a-z']+", prompt.lower()))
+
+
+def _match_keyword(tokens: set[str], keyword_map: dict[str, set[str]]) -> str | None:
+    # Returns None when nothing matched, distinct from a real match that
+    # happens to equal the default (e.g. "log cabin" genuinely matching
+    # "house" is not the same as no keyword matching at all).
+    for label, keywords in keyword_map.items():
+        if tokens & keywords:
+            return label
+    return None
+
+
+def match_archetype(prompt: str) -> str | None:
+    """Archetype the keyword parser actually matched, or None if it had to default."""
+    return _match_keyword(_tokenize(prompt), ARCHETYPE_KEYWORDS)
+
+
+def parse_prompt(prompt: str) -> GenerationParams:
+    tokens = _tokenize(prompt)
+
+    archetype = _match_keyword(tokens, ARCHETYPE_KEYWORDS) or DEFAULT_ARCHETYPE
+    scale_tier = _match_keyword(tokens, SCALE_KEYWORDS) or DEFAULT_SCALE
+
+    wall_material = DEFAULT_MATERIAL
+    for token in tokens:
+        if token in MATERIAL_KEYWORDS:
+            wall_material = MATERIAL_KEYWORDS[token]
+            break
+
+    return GenerationParams(
+        archetype=archetype,
+        scale_tier=scale_tier,
+        wall_material=wall_material,
+        prompt=prompt,
+    )
