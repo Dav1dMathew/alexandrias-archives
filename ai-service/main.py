@@ -94,18 +94,66 @@ async def analyze(file: UploadFile = File(...)):
 
 @app.post("/generate", response_model=Blueprint)
 async def generate(request: GenerateRequest):
-    # Real-world lookups (OSM footprint, Wikipedia photo mosaic) only
+    # Real-world lookups (Wikipedia photo mosaic, OSM footprint) only
     # make sense when the prompt actually names a specific real subject.
     # A confident keyword match (e.g. "a small wooden house" matching
     # "house") means it's a generic description, not a named place - and
-    # both Nominatim's fuzzy search and Wikipedia's search will confidently
+    # both Wikipedia's and Nominatim's fuzzy search will confidently
     # return *something* for almost any query, so without this gate a
-    # totally generic prompt could get hijacked into a random building's
-    # footprint or a random article's photo instead of the reliable
-    # archetype system. Named-subject prompts (no keyword match) still
-    # try OSM -> mosaic -> archetype/LLM in that order below.
+    # totally generic prompt could get hijacked into a random article's
+    # photo or a random building's footprint instead of the reliable
+    # archetype system. Named-subject prompts (no keyword match) try
+    # mosaic -> OSM -> archetype/LLM in that order below.
     keyword_matched = match_archetype(request.prompt) is not None
 
+    # First: a real photo, reproduced as an extruded block-color mosaic.
+    # Tried before OSM on purpose - a photo captures color, domes,
+    # ornamentation and anything else that isn't "footprint extruded
+    # straight up," which is all OSM's plain extrusion can ever produce.
+    # For an ornate/domed building (e.g. the Taj Mahal) tracing its real
+    # footprint with a single material just gives a flat, colorless,
+    # oddly-angled outline - genuinely worse than a real photo's
+    # silhouette and colors, even though OSM's geometry is "more real."
+    image_bytes = None if keyword_matched else await asyncio.to_thread(
+        fetch_reference_image_bytes, request.prompt
+    )
+    if image_bytes is not None:
+        mosaic = build_mosaic(image_bytes)
+        if mosaic is not None:
+            blocks, width, height, depth = mosaic
+            display_name = request.prompt.strip()
+            return {
+                "id": _slugify(display_name),
+                "name": display_name,
+                "width": width,
+                "height": height,
+                "depth": depth,
+                "blocks": [
+                    {"x": x, "y": y, "z": z, "blockId": block_id}
+                    for x, y, z, block_id in blocks
+                ],
+                "reasoning": (
+                    "Reproduced as an extruded block-color mosaic from a real "
+                    "reference photo (Wikipedia) - matches the photo's actual "
+                    "silhouette and colors, not a 3D template guess."
+                ),
+                "attributes": [
+                    {
+                        "field": "source",
+                        "value": "real photo, Wikipedia main image for this page",
+                        "provenance": "documented",
+                    },
+                    {
+                        "field": "form",
+                        "value": "solid extruded mosaic relief, not a hollow walkable building",
+                        "provenance": "documented",
+                    },
+                ],
+            }
+
+    # Second: OSM's real traced footprint - used when there's no good
+    # photo (Wikipedia has no image for this subject), for buildings
+    # boxy enough that a straight extrusion actually looks right.
     osm_building = None if keyword_matched else await asyncio.to_thread(
         lookup_real_building, request.prompt
     )
@@ -144,52 +192,6 @@ async def generate(request: GenerateRequest):
                     {
                         "field": "footprint",
                         "value": "real traced outline from OpenStreetMap",
-                        "provenance": "documented",
-                    },
-                ],
-            }
-
-    # Second: a real photo, reproduced as a block-color mosaic. Doesn't
-    # guess a shape at all - it reproduces the actual photo's silhouette
-    # and color directly via Wikipedia's (free, no key) main image for
-    # the prompt. This is what actually fixes things the archetype system
-    # structurally cannot represent (a Ferris wheel's visible support
-    # structure, an unusual building) - a real image beats a parametric
-    # guess for anything that doesn't fit house/tower/temple/wheel.
-    # Flat mural, not walkable 3D - a different tradeoff from the OSM
-    # path above, not a strictly better one.
-    image_bytes = None if keyword_matched else await asyncio.to_thread(
-        fetch_reference_image_bytes, request.prompt
-    )
-    if image_bytes is not None:
-        mosaic = build_mosaic(image_bytes)
-        if mosaic is not None:
-            blocks, width, height, depth = mosaic
-            display_name = request.prompt.strip()
-            return {
-                "id": _slugify(display_name),
-                "name": display_name,
-                "width": width,
-                "height": height,
-                "depth": depth,
-                "blocks": [
-                    {"x": x, "y": y, "z": z, "blockId": block_id}
-                    for x, y, z, block_id in blocks
-                ],
-                "reasoning": (
-                    "Reproduced as a block-color mosaic from a real reference "
-                    "photo (Wikipedia) - a flat mural matching the photo's "
-                    "actual silhouette and colors, not a 3D template guess."
-                ),
-                "attributes": [
-                    {
-                        "field": "source",
-                        "value": "real photo, Wikipedia main image for this page",
-                        "provenance": "documented",
-                    },
-                    {
-                        "field": "form",
-                        "value": "flat mosaic mural, not a walkable 3D structure",
                         "provenance": "documented",
                     },
                 ],

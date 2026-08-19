@@ -1,12 +1,13 @@
-"""Turns a real photo into a Minecraft block mosaic.
+"""Turns a real photo into an extruded Minecraft block mosaic.
 
-A flat, one-block-thick vertical mural where each pixel becomes the
-nearest-color Minecraft concrete block. Unlike the archetype generators,
-this doesn't guess a shape at all - it reproduces the actual photo's
-silhouette and color directly, so it's the fallback for anything that
-doesn't fit house/tower/temple/wheel (a Ferris wheel with visible
-support structure, an oddly-shaped building, anything). Not walkable -
-a mural, not a 3D structure.
+Each pixel becomes a column of the nearest-color Minecraft concrete
+block, extruded a few blocks deep for real volume - not a paper-thin
+mural. Unlike the archetype generators, this doesn't guess a shape at
+all - it reproduces the actual photo's silhouette and color directly,
+so it's the fallback for anything that doesn't fit house/tower/temple/
+wheel (a Ferris wheel's support structure, a domed building, anything
+with real color/detail a template can't capture). Still not a walkable
+interior - a solid relief sculpture, not a hollow building.
 """
 
 import io
@@ -39,9 +40,17 @@ _PALETTE: list[tuple[str, tuple[int, int, int]]] = [
 ]
 
 
+# Blocks budget for the depth extrusion below - keeps well under
+# BlueprintValidator's 50,000 block cap even at the max 64x64 footprint.
+_MAX_MOSAIC_BLOCKS = 40_000
+_MIN_DEPTH, _MAX_DEPTH = 3, 10
+
+
 def build_mosaic(image_bytes: bytes) -> tuple[list[Block], int, int, int] | None:
-    """Returns (blocks, width, height, depth) for a flat mural reproducing
-    the image, or None if the bytes aren't a decodable image."""
+    """Returns (blocks, width, height, depth) reproducing the image as a
+    solid extruded volume (same color straight back through the depth,
+    not a real depth map) - genuine 3D presence rather than a 1-block
+    paper-thin wall, or None if the bytes aren't a decodable image."""
     try:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     except Exception:
@@ -53,6 +62,8 @@ def build_mosaic(image_bytes: bytes) -> tuple[list[Block], int, int, int] | None
     new_height = max(1, round(height * scale))
     image = image.resize((new_width, new_height), Image.LANCZOS)
 
+    depth = max(_MIN_DEPTH, min(_MAX_DEPTH, _MAX_MOSAIC_BLOCKS // max(new_width * new_height, 1)))
+
     blocks: list[Block] = []
     pixels = image.load()
     for row in range(new_height):
@@ -61,9 +72,10 @@ def build_mosaic(image_bytes: bytes) -> tuple[list[Block], int, int, int] | None
             # Image row 0 is the top of the photo - Minecraft y increases
             # upward, so flip vertically to keep the mural right-side up.
             y = new_height - 1 - row
-            blocks.append((col, y, 0, block_id))
+            for z in range(depth):
+                blocks.append((col, y, z, block_id))
 
-    return blocks, new_width, new_height, 1
+    return blocks, new_width, new_height, depth
 
 
 def _nearest_block(rgb: tuple[int, int, int]) -> str:
