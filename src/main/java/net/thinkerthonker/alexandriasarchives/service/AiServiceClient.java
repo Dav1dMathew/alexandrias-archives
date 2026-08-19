@@ -23,7 +23,14 @@ public final class AiServiceClient {
 
     private static final String DEFAULT_BASE_URL = "http://localhost:8000";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+    // /generate can chain up to 3 network calls server-side before
+    // replying: an OSM geocode lookup (up to 15s), an OSM footprint
+    // fetch (up to 15s), and - only if neither finds a real building -
+    // a local LLM call (up to 60s). Worst case is close to 90s; this
+    // must stay comfortably above that or the mod times out while the
+    // AI service is still legitimately working, surfacing as a
+    // misleading "Failed to generate structure" with no other symptom.
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(100);
 
     private static final Gson GSON = new Gson();
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()

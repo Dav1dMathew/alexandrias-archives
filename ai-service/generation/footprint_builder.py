@@ -78,7 +78,17 @@ def build_from_footprint(
     span_x, span_z = max(xs) - min(xs), max(zs) - min(zs)
     max_span = max(span_x, span_z, 1.0)
 
-    scale = min(1.0, MAX_DIMENSION_BLOCKS / max_span)
+    # One shared scale for footprint AND height, so a genuinely tall,
+    # slender building (e.g. ~150m wide, ~500m tall) shrinks proportionally
+    # instead of each dimension being capped independently - which would
+    # otherwise crush a skyscraper's real aspect ratio into a squat cube
+    # (footprint maxed at 60 blocks wide, height separately maxed at 60
+    # blocks tall, when its true proportions are nowhere near 1:1).
+    scale = min(
+        1.0,
+        MAX_DIMENSION_BLOCKS / max_span,
+        MAX_HEIGHT_BLOCKS / max(height_meters, 1.0),
+    )
 
     min_x, min_z = min(xs), min(zs)
     grid_polygon = [
