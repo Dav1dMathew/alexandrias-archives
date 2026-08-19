@@ -17,7 +17,7 @@ public class BuildScreen extends Screen {
     private static final int PANEL_WIDTH = 420;
     private static final int PANEL_HEIGHT = 170;
     private static final int ACCENT_COLOR = 0xFFD9A441; // warm gold, matches the project's docs/diagram palette
-    private static final int PANEL_BACKGROUND = 0xE6141821;
+    private static final int PANEL_BACKGROUND = 0xFF141821; // fully opaque - see render() for why
     private static final int PANEL_BORDER = 0xFF3A4A63;
 
     private EditBox promptBox;
@@ -64,8 +64,15 @@ public class BuildScreen extends Screen {
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         // Full-window dim, then a centered panel - the actual "full
         // screen" surface (not a small vanilla-style dialog box).
-        this.renderTransparentBackground(guiGraphics);
-        guiGraphics.fill(0, 0, this.width, this.height, 0x99000000);
+        // Deliberately NOT calling renderTransparentBackground() here -
+        // that triggers vanilla's background-blur post effect (the same
+        // one behind the pause menu), which blurs the world behind the
+        // whole screen and bled through the panel/text since they weren't
+        // fully opaque - EditBox/Button stayed sharp only because they
+        // paint their own fully-opaque backgrounds internally, regardless
+        // of anything drawn behind them. A flat dim + opaque panel avoids
+        // the effect entirely instead of fighting it.
+        guiGraphics.fill(0, 0, this.width, this.height, 0xCC000000);
 
         int panelX = (this.width - PANEL_WIDTH) / 2;
         int panelY = (this.height - PANEL_HEIGHT) / 2;
