@@ -5,6 +5,9 @@ from pydantic import BaseModel
 
 from generation import parse_prompt, parse_prompt_llm, generate_blueprint
 from generation.parser import match_archetype
+from generation.osm_lookup import lookup_real_building
+from generation.footprint_builder import build_from_footprint
+from generation.archetypes import _slugify
 
 app = FastAPI(title="Alexandria's Archives - AI Service")
 
@@ -85,6 +88,54 @@ async def analyze(file: UploadFile = File(...)):
 
 @app.post("/generate", response_model=Blueprint)
 async def generate(request: GenerateRequest):
+    # Tries real geometry first: if the prompt names an actual mapped
+    # building, OpenStreetMap (free, no API key) has its real traced
+    # footprint and often a real height - tracing that outline is
+    # genuinely accurate, not a guess between 3 templates. Falls through
+    # to the archetype system below if there's no OSM match, no traced
+    # footprint (a point-only result), or the lookup times out/fails -
+    # lookup_real_building() never raises.
+    osm_building = await asyncio.to_thread(lookup_real_building, request.prompt)
+    if osm_building is not None:
+        material = parse_prompt(request.prompt).wall_material
+        try:
+            blocks, width, height, depth = build_from_footprint(
+                osm_building["points_latlon"], osm_building["height_meters"], material,
+            )
+        except ValueError:
+            blocks = None  # footprint collapsed after scaling - fall through
+
+        if blocks:
+            display_name = request.prompt.strip() or osm_building["name"]
+            return {
+                "id": _slugify(display_name),
+                "name": display_name,
+                "width": width,
+                "height": height,
+                "depth": depth,
+                "blocks": [
+                    {"x": x, "y": y, "z": z, "blockId": block_id}
+                    for x, y, z, block_id in blocks
+                ],
+                "reasoning": (
+                    f"Traced from {osm_building['name']}'s real footprint on "
+                    "OpenStreetMap, extruded to its real/estimated height - "
+                    "not a template guess."
+                ),
+                "attributes": [
+                    {
+                        "field": "height",
+                        "value": f"{osm_building['height_meters']:.0f} m",
+                        "provenance": "documented",
+                    },
+                    {
+                        "field": "footprint",
+                        "value": "real traced outline from OpenStreetMap",
+                        "provenance": "documented",
+                    },
+                ],
+            }
+
     # Hybrid: the keyword parser is a small, fixed vocabulary but is
     # deterministic and reliable when it actually matches. The local LLM
     # (via Ollama - free, no API key) is not consistently better at
