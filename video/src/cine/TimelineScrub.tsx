@@ -1,9 +1,8 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { BlueprintHero, BlueprintName } from "../BlueprintHero";
-import { fontStack, monoStack } from "../theme";
-
-const ACCENT = "#ffd166";
+import { fontStack } from "../theme";
+import { light } from "../lightTheme";
 
 // The report's "timeline growth across historical periods" feature: the
 // same structure re-rendered at successive points in its construction,
@@ -17,7 +16,9 @@ export const TimelineScrub: React.FC<{
 }> = ({ name, duration, years, size = 700, label }) => {
   const frame = useCurrentFrame();
 
-  const progress = interpolate(frame, [24, duration - 40], [0, 1], {
+  // Reaches full height with time to spare, so the shot ends holding on
+  // the finished structure rather than cutting the moment it tops out.
+  const progress = interpolate(frame, [24, duration - 96], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -37,7 +38,7 @@ export const TimelineScrub: React.FC<{
   );
 
   return (
-    <AbsoluteFill style={{ opacity }}>
+    <AbsoluteFill style={{ opacity, background: light.paper }}>
       {/* Label and year lead at the top; the model sits below them and the
           track anchors the bottom. Previously all three were stacked at the
           bottom edge, which crowded the frame and buried the year. */}
@@ -56,7 +57,7 @@ export const TimelineScrub: React.FC<{
               fontWeight: 500,
               letterSpacing: 5,
               textTransform: "uppercase",
-              color: "rgba(190,208,226,0.62)",
+              color: light.inkFaint,
               textAlign: "center",
               marginBottom: 20,
             }}
@@ -69,11 +70,11 @@ export const TimelineScrub: React.FC<{
             fontFamily: fontStack,
             fontSize: 104,
             fontWeight: 600,
-            color: ACCENT,
+            color: light.orange,
             textAlign: "center",
             letterSpacing: -2.6,
             lineHeight: 1,
-            textShadow: "0 6px 60px rgba(0,0,0,0.9)",
+            
           }}
         >
           {currentYear}
@@ -87,6 +88,10 @@ export const TimelineScrub: React.FC<{
             rotation={progress * Math.PI * 0.55}
             size={size}
             reveal={reveal}
+            // Dark-on-light here; the default tint is near-white and
+            // would vanish against the paper ground.
+            tint={light.model}
+            edgeTint={light.orange}
           />
         </div>
       </AbsoluteFill>
@@ -108,7 +113,7 @@ export const TimelineScrub: React.FC<{
                 left: 0,
                 right: 0,
                 height: 2,
-                background: "rgba(150,175,200,0.28)",
+                background: "rgba(20,17,13,0.14)",
               }}
             />
             <div
@@ -118,7 +123,7 @@ export const TimelineScrub: React.FC<{
                 left: 0,
                 width: `${progress * 100}%`,
                 height: 2,
-                background: ACCENT,
+                background: light.orange,
               }}
             />
             {years.map((year) => {
@@ -139,15 +144,15 @@ export const TimelineScrub: React.FC<{
                     style={{
                       width: 3,
                       height: 18,
-                      background: passed ? ACCENT : "rgba(150,175,200,0.4)",
+                      background: passed ? light.orange : "rgba(20,17,13,0.18)",
                       margin: "0 auto",
                     }}
                   />
                   <div
                     style={{
-                      fontFamily: monoStack,
+                      fontFamily: fontStack,
                       fontSize: 16,
-                      color: passed ? "rgba(255,209,102,0.95)" : "rgba(150,175,200,0.5)",
+                      color: passed ? light.orange : light.inkFaint,
                       marginTop: 6,
                     }}
                   >

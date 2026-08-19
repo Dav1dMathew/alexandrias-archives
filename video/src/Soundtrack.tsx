@@ -10,21 +10,22 @@ export const Soundtrack: React.FC<{
   fadeOutFrames?: number;
   gain?: number;
   startAtSeconds?: number;
+  src?: string;
 }> = ({
   fadeInFrames = 34,
   fadeOutFrames = 70,
   gain = 1,
-  // The track opens sparse and builds - measured mean loudness rises from
-  // about -19.9 dB over the first 33s to -16.9 dB around the 90s mark. So
-  // start from the developed section rather than the intro, which is both
-  // fuller and a better match for the reference film's energy.
+  // Default suits the night cuts, whose track opens sparse and builds -
+  // measured mean loudness rises from about -19.9 dB over the first 33s
+  // to -16.9 dB by the 90s mark.
   startAtSeconds = 90,
+  src = "destiny.mp3",
 }) => {
   const { durationInFrames, fps } = useVideoConfig();
 
   return (
     <Audio
-      src={staticFile("destiny.mp3")}
+      src={staticFile(src)}
       trimBefore={Math.round(startAtSeconds * fps)}
       volume={(frame) =>
         gain *

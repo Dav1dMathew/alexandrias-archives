@@ -2,6 +2,7 @@ import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { BlueprintHero, BlueprintName } from "../BlueprintHero";
 import { fontStack } from "../theme";
+import { light } from "../lightTheme";
 
 // The payoff beat: the structure builds itself from the ground up, big in
 // frame, while slowly turning. Uses the same real geometry as every other
@@ -13,7 +14,18 @@ export const Assembly: React.FC<{
   toSize?: number;
   caption?: string;
   turns?: number;
-}> = ({ name, duration, fromSize = 760, toSize = 900, caption, turns = 0.45 }) => {
+  /** Light launch cut renders dark-on-paper; night cut is the inverse. */
+  variant?: "dark" | "light";
+}> = ({
+  name,
+  duration,
+  fromSize = 760,
+  toSize = 900,
+  caption,
+  turns = 0.45,
+  variant = "dark",
+}) => {
+  const isLight = variant === "light";
   const frame = useCurrentFrame();
 
   // Build fast at first, easing out near the top - a linear reveal makes
@@ -44,7 +56,7 @@ export const Assembly: React.FC<{
   );
 
   return (
-    <AbsoluteFill style={{ opacity }}>
+    <AbsoluteFill style={{ opacity, background: isLight ? light.paper : undefined }}>
       {/* Model sits low so the headline owns the upper third - the Apple
           arrangement, rather than type pinned under the subject. */}
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
@@ -54,6 +66,8 @@ export const Assembly: React.FC<{
             rotation={rotation}
             size={size}
             reveal={reveal}
+            tint={isLight ? light.model : undefined}
+            edgeTint={isLight ? light.orange : undefined}
           />
         </div>
       </AbsoluteFill>
@@ -73,11 +87,11 @@ export const Assembly: React.FC<{
               fontSize: 68,
               fontWeight: 600,
               letterSpacing: -1.5,
-              color: "#f5f8fb",
+              color: isLight ? light.ink : "#f5f8fb",
               textAlign: "center",
               maxWidth: 1400,
               lineHeight: 1.14,
-              textShadow: "0 6px 60px rgba(0,0,0,0.95)",
+              textShadow: isLight ? "none" : "0 6px 60px rgba(0,0,0,0.95)",
             }}
           >
             {caption}

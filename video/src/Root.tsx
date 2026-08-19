@@ -3,6 +3,7 @@ import { Composition } from "remotion";
 import { AlexandriasArchives, TOTAL_FRAMES } from "./AlexandriasArchives";
 import { Cinematic, CINEMATIC_FRAMES } from "./Cinematic";
 import { Feature, FEATURE_FRAMES } from "./Feature";
+import { Launch, LAUNCH_FRAMES } from "./Launch";
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -30,6 +31,16 @@ export const RemotionRoot: React.FC = () => (
       id="Feature"
       component={Feature}
       durationInFrames={FEATURE_FRAMES}
+      fps={30}
+      width={1920}
+      height={1080}
+    />
+    {/* Launch cut - light/orange, product-launch pacing, with the
+        multi-model lineup */}
+    <Composition
+      id="Launch"
+      component={Launch}
+      durationInFrames={LAUNCH_FRAMES}
       fps={30}
       width={1920}
       height={1080}

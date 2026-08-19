@@ -13,6 +13,9 @@ export const PhotoPlate: React.FC<{
   panY?: number;
   dim?: number;
   fade?: number;
+  /** "light" washes the image toward paper so dark type reads on top,
+   *  for the launch cut; "dark" is the night-film grade. */
+  variant?: "dark" | "light";
 }> = ({
   src,
   duration,
@@ -22,6 +25,7 @@ export const PhotoPlate: React.FC<{
   panY = 0,
   dim = 0.55,
   fade = 26,
+  variant = "dark",
 }) => {
   const frame = useCurrentFrame();
 
@@ -45,17 +49,36 @@ export const PhotoPlate: React.FC<{
           height: "100%",
           objectFit: "cover",
           transform: `scale(${scale}) translate(${shiftX}px, ${shiftY}px)`,
-          filter: "saturate(0.6) contrast(1.08)",
+          filter:
+            variant === "light"
+              ? "saturate(0.34) contrast(0.96) brightness(1.1)"
+              : "saturate(0.6) contrast(1.08)",
         }}
       />
-      {/* Grade: flat dim plus a vignette, keeping type legible over any frame */}
-      <AbsoluteFill style={{ background: `rgba(2,4,7,${dim})` }} />
-      <AbsoluteFill
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 45%, transparent 28%, rgba(0,0,0,0.82) 92%)",
-        }}
-      />
+      {variant === "light" ? (
+        <>
+          {/* Wash the image back toward paper so near-black type reads
+              cleanly on top - the pale-photo treatment launch ads use. */}
+          <AbsoluteFill style={{ background: `rgba(247,243,236,${dim})` }} />
+          <AbsoluteFill
+            style={{
+              background:
+                "radial-gradient(ellipse at 50% 45%, rgba(247,243,236,0.34) 12%, rgba(247,243,236,0.9) 96%)",
+            }}
+          />
+        </>
+      ) : (
+        <>
+          {/* Grade: flat dim plus a vignette, keeping type legible over any frame */}
+          <AbsoluteFill style={{ background: `rgba(2,4,7,${dim})` }} />
+          <AbsoluteFill
+            style={{
+              background:
+                "radial-gradient(ellipse at 50% 45%, transparent 28%, rgba(0,0,0,0.82) 92%)",
+            }}
+          />
+        </>
+      )}
     </AbsoluteFill>
   );
 };
