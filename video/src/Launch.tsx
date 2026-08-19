@@ -14,6 +14,7 @@ import { PhotoPlate } from "./cine/PhotoPlate";
 import { Grain, Glow } from "./cine/Grain";
 import { SplitScreen } from "./cine/SplitScreen";
 import { Immersive } from "./cine/Immersive";
+import { VRPlate } from "./cine/VRPlate";
 import { fontStack } from "./theme";
 import { launch } from "./launchTheme";
 
@@ -392,19 +393,28 @@ export const Launch: React.FC = () => (
 
     {/* ==================== ACT 3 - FEATURES, ON BARS ==================== */}
 
-    {/* 2 bars - the imaginative/VR promise, straight off the reveal */}
-    <Sequence from={bar(2)} durationInFrames={bar(6) - bar(2)}>
-      <Immersive
-        duration={bar(6) - bar(2)}
-        name="dome"
+    {/* 2 bars - real footage: she puts the headset on */}
+    <Sequence from={bar(2)} durationInFrames={bar(5) - bar(2)}>
+      <VRPlate
+        duration={bar(5) - bar(2)}
         headline="Then step inside it."
+        startAtSeconds={0}
+      />
+    </Sequence>
+
+    {/* 5 bars - cut to what she's looking at. The live plate sells the
+        moment; this sells what's actually in the headset. */}
+    <Sequence from={bar(5)} durationInFrames={bar(7) - bar(5)}>
+      <Immersive
+        duration={bar(7) - bar(5)}
+        name="dome"
         caption="VR — on the roadmap"
       />
     </Sequence>
 
-    {/* 6 bars - describe it. Shorter than before: types faster and
-        clears as soon as the reply has landed. */}
-    <Sequence from={bar(6)} durationInFrames={bar(9) - bar(6)}>
+    {/* 7 bars - describe it. Types fast and clears as soon as the
+        reply has landed. */}
+    <Sequence from={bar(7)} durationInFrames={bar(10) - bar(7)}>
       <TypedPrompt
         command="/aa build the burj khalifa in 2009"
         reply="Supertall tapering tower, Y-shaped plan, stepped setbacks rising to a spire."
@@ -415,10 +425,10 @@ export const Launch: React.FC = () => (
       />
     </Sequence>
 
-    {/* 9 bars - two views of one engine, side by side */}
-    <Sequence from={bar(9)} durationInFrames={bar(14) - bar(9)}>
+    {/* 10 bars - two views of one engine, side by side */}
+    <Sequence from={bar(10)} durationInFrames={bar(14) - bar(10)}>
       <SplitScreen
-        duration={bar(14) - bar(9)}
+        duration={bar(14) - bar(10)}
         size={600}
         left={{ name: "eiffel", label: "Generating", caption: "Eiffel Tower" }}
         right={{ name: "burj", label: "Timeline", years: [2004, 2006, 2008, 2010] }}
