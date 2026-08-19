@@ -41,6 +41,10 @@ ARCHETYPE_KEYWORDS: dict[str, set[str]] = {
         "dome", "mausoleum", "tomb", "mosque", "cathedral", "basilica",
         "planetarium", "rotunda", "observatory", "capitol_dome",
     },
+    "aircraft": {
+        "aircraft", "plane", "airplane", "jet", "airliner", "airbus",
+        "boeing", "concorde", "fighter", "biplane", "seaplane", "glider",
+    },
 }
 DEFAULT_ARCHETYPE = "house"
 
@@ -63,6 +67,21 @@ MATERIAL_KEYWORDS: dict[str, str] = {
     "classical": "minecraft:quartz_block",
     "roman": "minecraft:quartz_block",
     "greek": "minecraft:quartz_block",
+    "metal": "minecraft:iron_block",
+    "metallic": "minecraft:iron_block",
+    "steel": "minecraft:iron_block",
+    "aluminum": "minecraft:light_gray_concrete",
+    "aluminium": "minecraft:light_gray_concrete",
+    "silver": "minecraft:light_gray_concrete",
+    "brick": "minecraft:bricks",
+    "red": "minecraft:bricks",
+    "gold": "minecraft:gold_block",
+    "golden": "minecraft:gold_block",
+    "black": "minecraft:black_concrete",
+    "dark": "minecraft:black_concrete",
+    "concrete": "minecraft:light_gray_concrete",
+    "modern": "minecraft:light_gray_concrete",
+    "glass": "minecraft:glass",
 }
 DEFAULT_MATERIAL = "minecraft:stone_bricks"
 
@@ -71,7 +90,7 @@ DEFAULT_MATERIAL = "minecraft:stone_bricks"
 # BlueprintValidator can actually place, instead of trusting the model to
 # invent a valid Minecraft block ID.
 VALID_MATERIALS = sorted({DEFAULT_MATERIAL, *MATERIAL_KEYWORDS.values()})
-VALID_ARCHETYPES = ("house", "tower", "temple", "wheel", "dome")
+VALID_ARCHETYPES = ("house", "tower", "temple", "wheel", "dome", "aircraft")
 VALID_SCALE_TIERS = ("mini", "medium", "huge")
 VALID_LEAN_DIRECTIONS = ("x", "z")
 # Clamp: a real-world lean beyond this looks absurd and blows up the
@@ -83,6 +102,13 @@ VALID_CROSS_SECTIONS = ("square", "circular", "y_shape")
 DEFAULT_CROSS_SECTION = "square"
 
 MAX_ACCESSORY_COUNT = 8
+
+# Aircraft shape - not resizable box territory at all: a fuselage,
+# swept wings, and engine pods.
+MIN_WINGSPAN_RATIO, MAX_WINGSPAN_RATIO = 0.4, 1.2
+DEFAULT_WINGSPAN_RATIO = 0.7
+MAX_ENGINE_COUNT = 4
+DEFAULT_ENGINE_COUNT = 2
 
 
 @dataclass
@@ -113,6 +139,16 @@ class GenerationParams:
     # minarets around its central dome. accessory_count small towers get
     # generated and merged in around the main structure's perimeter.
     accessory_count: int = 0
+    # Aircraft-only: wingspan relative to fuselage length (0.4 = stubby,
+    # 1.2 = very wide-winged), and how many engine pods hang under the
+    # wings (0-4).
+    wingspan_ratio: float = DEFAULT_WINGSPAN_RATIO
+    engine_count: int = DEFAULT_ENGINE_COUNT
+    # Freeform, pre-parameter reasoning the LLM wrote before committing
+    # to any structured field - e.g. describing the Concorde's actual
+    # fuselage/wing/engine geometry before picking numbers for it. None
+    # for the keyword parser (nothing to reason about).
+    shape_description: str | None = None
 
 
 def _tokenize(prompt: str) -> set[str]:

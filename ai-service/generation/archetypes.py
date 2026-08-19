@@ -163,6 +163,22 @@ def _normalize_xz_bounds(blocks: list[Block]) -> tuple[list[Block], int, int]:
     return normalized, width, depth
 
 
+def _normalize_bounds(blocks: list[Block]) -> tuple[list[Block], int, int, int]:
+    # Full 3-axis version of _normalize_xz_bounds - needed by generators
+    # (aircraft) where height isn't a simple "layer index" the caller
+    # already controls, so y can go negative too (an engine pod hanging
+    # below the wing's y-center, for instance).
+    xs = [b[0] for b in blocks]
+    ys = [b[1] for b in blocks]
+    zs = [b[2] for b in blocks]
+    min_x, min_y, min_z = min(xs), min(ys), min(zs)
+    normalized = [(x - min_x, y - min_y, z - min_z, m) for x, y, z, m in blocks]
+    width = max(xs) - min_x + 1
+    height = max(ys) - min_y + 1
+    depth = max(zs) - min_z + 1
+    return normalized, width, height, depth
+
+
 def _layer_outline(cross_section: str, cx: float, cz: float, size: int, filled: bool):
     if cross_section == "circular":
         yield from _circular_outline(cx, cz, size, filled)
@@ -355,12 +371,100 @@ def generate_dome(params: GenerationParams) -> tuple[list[Block], int, int, int]
     return blocks, width, finial_y + 3, depth
 
 
+ENGINE_MATERIAL = "minecraft:iron_block"
+COCKPIT_MATERIAL = "minecraft:black_concrete"
+
+
+def generate_aircraft(params: GenerationParams) -> tuple[list[Block], int, int, int]:
+    # A fuselage + swept delta wings + a tail fin + engine pods - none of
+    # this is "a resized box," it's a genuinely different topology from
+    # every other archetype. X = nose-to-tail length, Y = height,
+    # Z = wingspan. Wings sweep backward and taper to a point outward
+    # (a real delta silhouette, not a rectangle), matching how a
+    # Concorde-style aircraft actually looks from above.
+    length = _scale(24, params, minimum=14)
+    fuselage_radius = max(2, length // 10)
+    half_span = max(fuselage_radius + 3, round(length * params.wingspan_ratio / 2))
+
+    y_center = fuselage_radius + 3
+    z_center = half_span + 2
+
+    blocks: list[Block] = []
+
+    # Fuselage: tapers to a point at the nose, tapers (less sharply) at
+    # the tail, constant radius in between.
+    for x in range(length):
+        if x < length * 0.18:
+            t = x / max(1, length * 0.18)
+            radius_here = max(1, round(fuselage_radius * t))
+        elif x > length * 0.85:
+            t = (length - 1 - x) / max(1, length * 0.15)
+            radius_here = max(1, round(fuselage_radius * max(t, 0.2)))
+        else:
+            radius_here = fuselage_radius
+
+        for a, b in _circular_outline(y_center, z_center, radius_here * 2, filled=False):
+            blocks.append((x, a, b, params.wall_material))
+
+    # Cockpit windows: a small dark band near the nose.
+    cockpit_x = round(length * 0.14)
+    blocks.append((cockpit_x, y_center + fuselage_radius // 2, z_center, COCKPIT_MATERIAL))
+
+    # Wings: delta shape - widest (front-to-back) at the fuselage,
+    # sweeping back and narrowing to a point at the tip.
+    wing_root_x = round(length * 0.4)
+    wing_root_chord = round(length * 0.3)
+    sweep = 0.85
+    taper = 0.45
+
+    wing_span_available = half_span - fuselage_radius
+    for s in range(1, wing_span_available + 1):
+        leading_x = wing_root_x + round(s * sweep)
+        chord = max(1, wing_root_chord - round(s * taper))
+        trailing_x = leading_x + chord
+        for x in range(leading_x, trailing_x + 1):
+            for side in (1, -1):
+                z = z_center + side * (fuselage_radius + s)
+                blocks.append((x, y_center, z, params.wall_material))
+
+    # Tail fin: a swept vertical fin, tallest where it meets the
+    # fuselage and tapering down toward the tail tip.
+    tail_start_x = round(length * 0.82)
+    tail_height = max(2, fuselage_radius * 3)
+    tail_span = max(1, length - 1 - tail_start_x)
+    for x in range(tail_start_x, length):
+        progress = (x - tail_start_x) / tail_span
+        fin_height = round(tail_height * (1 - progress))
+        for h in range(1, fin_height + 1):
+            blocks.append((x, y_center + fuselage_radius + h, z_center, params.wall_material))
+
+    # Engine pods: small cylinders hanging under the wings, spaced along
+    # the span - engine_count of them, split evenly left/right.
+    pod_length = max(3, length // 8)
+    pod_radius = max(1, fuselage_radius // 2)
+    pairs = max(1, params.engine_count // 2) if params.engine_count > 0 else 0
+    for pair in range(pairs):
+        span_fraction = 0.35 + pair * (0.4 / max(1, pairs))
+        span_offset = max(1, round(wing_span_available * span_fraction))
+        pod_x = wing_root_x + round(span_offset * sweep) - pod_length // 2
+        pod_y = y_center - fuselage_radius - pod_radius - 1
+        for side in (1, -1):
+            pod_z = z_center + side * (fuselage_radius + span_offset)
+            for dx in range(pod_length):
+                for a, b in _circular_outline(pod_y, pod_z, pod_radius * 2, filled=True):
+                    blocks.append((pod_x + dx, a, b, ENGINE_MATERIAL))
+
+    blocks, width, height, depth = _normalize_bounds(blocks)
+    return blocks, width, height, depth
+
+
 GENERATORS = {
     "house": generate_house,
     "tower": generate_tower,
     "temple": generate_temple,
     "wheel": generate_wheel,
     "dome": generate_dome,
+    "aircraft": generate_aircraft,
 }
 
 
@@ -444,6 +548,17 @@ def generate_blueprint(params: GenerationParams) -> dict:
 
     blocks = _dedupe(blocks)
 
+    # shape_description is the LLM's freeform geometry reasoning, written
+    # before it committed to any structured field - surfaced to the
+    # player as part of "reasoning" since the API contract doesn't have
+    # a separate field for it, rather than silently discarding it.
+    if params.shape_description:
+        reasoning = params.shape_description + (
+            f" {params.reasoning}" if params.reasoning else ""
+        )
+    else:
+        reasoning = params.reasoning
+
     return {
         "id": _slugify(params.prompt),
         "name": params.prompt.strip() or f"Generated {params.archetype}",
@@ -454,6 +569,6 @@ def generate_blueprint(params: GenerationParams) -> dict:
             {"x": x, "y": y, "z": z, "blockId": block_id}
             for x, y, z, block_id in blocks
         ],
-        "reasoning": params.reasoning,
+        "reasoning": reasoning,
         "attributes": params.attributes,
     }

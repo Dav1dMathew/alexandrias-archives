@@ -199,6 +199,9 @@ async def generate(request: GenerateRequest):
         params.taper_ratio = llm_params.taper_ratio
         params.setback_tiers = llm_params.setback_tiers
         params.accessory_count = llm_params.accessory_count
+        params.wingspan_ratio = llm_params.wingspan_ratio
+        params.engine_count = llm_params.engine_count
+        params.shape_description = llm_params.shape_description
     else:
         params = llm_params
 
