@@ -59,6 +59,14 @@ MATERIAL_KEYWORDS: dict[str, str] = {
 }
 DEFAULT_MATERIAL = "minecraft:stone_bricks"
 
+# The fixed set of block IDs any parser (keyword or LLM) is allowed to
+# choose - constrains free-form model output to values StructureBuilder/
+# BlueprintValidator can actually place, instead of trusting the model to
+# invent a valid Minecraft block ID.
+VALID_MATERIALS = sorted({DEFAULT_MATERIAL, *MATERIAL_KEYWORDS.values()})
+VALID_ARCHETYPES = ("house", "tower", "temple")
+VALID_SCALE_TIERS = ("mini", "medium", "huge")
+
 
 @dataclass
 class GenerationParams:
@@ -66,24 +74,36 @@ class GenerationParams:
     scale_tier: str
     wall_material: str
     prompt: str
+    # Populated only by the LLM-backed parser (llm_parser.py). None here
+    # means "keyword-matched, no per-attribute provenance available."
+    reasoning: str | None = None
+    attributes: list[dict] | None = None
 
 
 def _tokenize(prompt: str) -> set[str]:
     return set(re.findall(r"[a-z']+", prompt.lower()))
 
 
-def _match_keyword(tokens: set[str], keyword_map: dict[str, set[str]], default: str) -> str:
+def _match_keyword(tokens: set[str], keyword_map: dict[str, set[str]]) -> str | None:
+    # Returns None when nothing matched, distinct from a real match that
+    # happens to equal the default (e.g. "log cabin" genuinely matching
+    # "house" is not the same as no keyword matching at all).
     for label, keywords in keyword_map.items():
         if tokens & keywords:
             return label
-    return default
+    return None
+
+
+def match_archetype(prompt: str) -> str | None:
+    """Archetype the keyword parser actually matched, or None if it had to default."""
+    return _match_keyword(_tokenize(prompt), ARCHETYPE_KEYWORDS)
 
 
 def parse_prompt(prompt: str) -> GenerationParams:
     tokens = _tokenize(prompt)
 
-    archetype = _match_keyword(tokens, ARCHETYPE_KEYWORDS, DEFAULT_ARCHETYPE)
-    scale_tier = _match_keyword(tokens, SCALE_KEYWORDS, DEFAULT_SCALE)
+    archetype = _match_keyword(tokens, ARCHETYPE_KEYWORDS) or DEFAULT_ARCHETYPE
+    scale_tier = _match_keyword(tokens, SCALE_KEYWORDS) or DEFAULT_SCALE
 
     wall_material = DEFAULT_MATERIAL
     for token in tokens:

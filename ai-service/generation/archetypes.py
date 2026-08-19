@@ -157,4 +157,6 @@ def generate_blueprint(params: GenerationParams) -> dict:
             {"x": x, "y": y, "z": z, "blockId": block_id}
             for x, y, z, block_id in blocks
         ],
+        "reasoning": params.reasoning,
+        "attributes": params.attributes,
     }

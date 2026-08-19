@@ -1,7 +1,10 @@
+import asyncio
+
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 
-from generation import parse_prompt, generate_blueprint
+from generation import parse_prompt, parse_prompt_llm, generate_blueprint
+from generation.parser import match_archetype
 
 app = FastAPI(title="Alexandria's Archives - AI Service")
 
@@ -13,6 +16,12 @@ class BlueprintBlock(BaseModel):
     blockId: str
 
 
+class BlueprintAttribute(BaseModel):
+    field: str
+    value: str
+    provenance: str
+
+
 class Blueprint(BaseModel):
     id: str
     name: str
@@ -20,6 +29,8 @@ class Blueprint(BaseModel):
     height: int
     depth: int
     blocks: list[BlueprintBlock]
+    reasoning: str | None = None
+    attributes: list[BlueprintAttribute] | None = None
 
 
 class GenerateRequest(BaseModel):
@@ -74,8 +85,34 @@ async def analyze(file: UploadFile = File(...)):
 
 @app.post("/generate", response_model=Blueprint)
 async def generate(request: GenerateRequest):
-    # Tier 0: keyword-parsed prompt -> procedural blueprint generator.
-    # parse_prompt() stands in for an LLM call - same input/output shape,
-    # so swapping in a real LLM later doesn't change this endpoint.
-    params = parse_prompt(request.prompt)
+    # Hybrid: the keyword parser is a small, fixed vocabulary but is
+    # deterministic and reliable when it actually matches. The local LLM
+    # (via Ollama - free, no API key) is not consistently better at
+    # archetype classification - a 3B model misclassifies famous buildings
+    # it should know - but it's genuinely good at the thing that actually
+    # differentiates this project: honestly labeling how confident each
+    # extracted fact is (documented/inferred/ai_generated/unknown) rather
+    # than presenting a guess as fact.
+    #
+    # So: trust the keyword parser's archetype/scale/material whenever it
+    # has a confident (non-default) match, and always keep the LLM's
+    # reasoning/attributes for the provenance layer. parse_prompt_llm()
+    # never raises - it returns None on any failure (Ollama not running,
+    # timeout, malformed output) - so /generate always succeeds even
+    # without a local model available.
+    keyword_matched = match_archetype(request.prompt) is not None
+    keyword_params = parse_prompt(request.prompt)
+    llm_params = await asyncio.to_thread(parse_prompt_llm, request.prompt)
+
+    if llm_params is None:
+        params = keyword_params
+    elif keyword_matched:
+        # Keyword parser found a confident match - trust its geometry,
+        # keep the LLM's honest reasoning/provenance on top of it.
+        params = keyword_params
+        params.reasoning = llm_params.reasoning
+        params.attributes = llm_params.attributes
+    else:
+        params = llm_params
+
     return generate_blueprint(params)
