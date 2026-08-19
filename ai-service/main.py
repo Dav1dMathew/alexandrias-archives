@@ -116,6 +116,9 @@ async def generate(request: GenerateRequest):
         params.attributes = llm_params.attributes
         params.lean_angle_degrees = llm_params.lean_angle_degrees
         params.lean_direction = llm_params.lean_direction
+        params.cross_section = llm_params.cross_section
+        params.taper_ratio = llm_params.taper_ratio
+        params.setback_tiers = llm_params.setback_tiers
     else:
         params = llm_params
 

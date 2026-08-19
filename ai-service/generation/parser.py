@@ -71,6 +71,10 @@ VALID_LEAN_DIRECTIONS = ("x", "z")
 # bounding box (offset grows with height * tan(angle)).
 MAX_LEAN_DEGREES = 15.0
 
+# Tower shape - the actual silhouette, not just a resized box.
+VALID_CROSS_SECTIONS = ("square", "circular", "y_shape")
+DEFAULT_CROSS_SECTION = "square"
+
 
 @dataclass
 class GenerationParams:
@@ -88,6 +92,14 @@ class GenerationParams:
     # for everything else.
     lean_angle_degrees: float = 0.0
     lean_direction: str = "x"
+    # Tower silhouette. cross_section changes the actual footprint shape
+    # per layer (square/circular/tri-lobed "Y", the Burj Khalifa's real
+    # defining feature); taper_ratio shrinks the footprint from base to
+    # top (0 = no taper, 0.8 = nearly a point); setback_tiers > 0 makes
+    # that shrink happen in discrete steps instead of smoothly.
+    cross_section: str = "square"
+    taper_ratio: float = 0.0
+    setback_tiers: int = 0
 
 
 def _tokenize(prompt: str) -> set[str]:

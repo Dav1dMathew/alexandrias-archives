@@ -25,10 +25,15 @@ from .parser import (
     VALID_MATERIALS,
     VALID_LEAN_DIRECTIONS,
     MAX_LEAN_DEGREES,
+    VALID_CROSS_SECTIONS,
+    DEFAULT_CROSS_SECTION,
     DEFAULT_ARCHETYPE,
     DEFAULT_SCALE,
     DEFAULT_MATERIAL,
 )
+
+MAX_TAPER_RATIO = 0.85
+MAX_SETBACK_TIERS = 8
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "qwen2.5:3b"
@@ -57,7 +62,21 @@ tall, modern, or unusually shaped is NOT the same as leaning - e.g. the Burj Kha
 is extremely tall but does NOT lean, so it must get 0. When in doubt, use 0.
   "lean_direction": one of {lean_directions} - the axis it leans toward, irrelevant if \
 lean_angle_degrees is 0,
-  "reasoning": "one sentence explaining the archetype/scale/lean choice",
+  "cross_section": one of {cross_sections} - the tower's actual floor-plan shape. \
+"square" is the default/normal case for most towers, skyscrapers and castles. \
+"circular" for genuinely cylindrical towers (silos, some lighthouses/minarets). \
+"y_shape" ONLY for a building whose floor plan is a well-known tri-lobed/Y shape - \
+the Burj Khalifa is the definitive example. Do not guess "y_shape" - use it only if \
+you are confident.
+  "taper_ratio": a number from 0 to {max_taper} - how much the tower narrows from base \
+to tip. 0 means constant width top to bottom (true for most buildings, including most \
+towers/castles). Only use a higher value (0.3-0.7) for a building genuinely famous for \
+tapering to a point, like the Burj Khalifa, an obelisk, or a spire. 0 if unsure.
+  "setback_tiers": an integer from 0 to {max_setbacks} - number of visible stepped \
+setback tiers as the building narrows going up (0 = no visible steps). Only nonzero \
+for a building genuinely known for a "wedding cake"/ziggurat stepped profile. 0 if \
+unsure.
+  "reasoning": "one sentence explaining the archetype/scale/lean/shape choice",
   "attributes": [
     {{"field": "<short field name>", "value": "<short value>", "provenance": one of {provenance}}}
   ]
@@ -85,6 +104,9 @@ def parse_prompt_llm(prompt: str) -> GenerationParams | None:
         provenance=list(VALID_PROVENANCE),
         max_lean=MAX_LEAN_DEGREES,
         lean_directions=list(VALID_LEAN_DIRECTIONS),
+        cross_sections=list(VALID_CROSS_SECTIONS),
+        max_taper=MAX_TAPER_RATIO,
+        max_setbacks=MAX_SETBACK_TIERS,
     )
 
     payload = json.dumps({
@@ -136,6 +158,12 @@ def _to_generation_params(parsed: dict, prompt: str) -> GenerationParams | None:
     lean_angle, lean_direction = _sanitize_lean(
         parsed.get("lean_angle_degrees"), parsed.get("lean_direction"), archetype,
     )
+    cross_section, taper_ratio, setback_tiers = _sanitize_shape(
+        parsed.get("cross_section"),
+        parsed.get("taper_ratio"),
+        parsed.get("setback_tiers"),
+        archetype,
+    )
 
     return GenerationParams(
         archetype=archetype,
@@ -146,7 +174,33 @@ def _to_generation_params(parsed: dict, prompt: str) -> GenerationParams | None:
         attributes=attributes,
         lean_angle_degrees=lean_angle,
         lean_direction=lean_direction,
+        cross_section=cross_section,
+        taper_ratio=taper_ratio,
+        setback_tiers=setback_tiers,
     )
+
+
+def _sanitize_shape(raw_cross_section, raw_taper, raw_setbacks, archetype: str) -> tuple[str, float, int]:
+    # Shape params only mean anything for towers - same reasoning as lean.
+    if archetype != "tower":
+        return DEFAULT_CROSS_SECTION, 0.0, 0
+
+    cross_section = (
+        raw_cross_section if raw_cross_section in VALID_CROSS_SECTIONS
+        else DEFAULT_CROSS_SECTION
+    )
+
+    try:
+        taper_ratio = max(0.0, min(float(raw_taper), MAX_TAPER_RATIO))
+    except (TypeError, ValueError):
+        taper_ratio = 0.0
+
+    try:
+        setback_tiers = max(0, min(int(raw_setbacks), MAX_SETBACK_TIERS))
+    except (TypeError, ValueError):
+        setback_tiers = 0
+
+    return cross_section, taper_ratio, setback_tiers
 
 
 def _sanitize_lean(raw_angle, raw_direction, archetype: str) -> tuple[float, str]:
