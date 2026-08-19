@@ -21,6 +21,9 @@
 		"main": [
 			"net.thinkerthonker.alexandriasarchives.AlexandriaSArchives"
 		],
+		"client": [
+			"net.thinkerthonker.alexandriasarchives.client.AAClient"
+		],
 		"fabric-datagen": [
 			"net.thinkerthonker.alexandriasarchives.AlexandriaSArchivesDataGenerator"
 		]

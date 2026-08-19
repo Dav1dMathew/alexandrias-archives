@@ -2,21 +2,33 @@ package net.thinkerthonker.alexandriasarchives.builder;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.state.BlockState;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
 import java.util.List;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 // Represents structure-building operation currently in progress.
-// Instead of placing 50,000 blocks in one server tick, a BuildJob places a limited
-// number of blocks a time.
-// It prevents large AI-generated structures from freezing the server.
+
+// * IMPORTANT NOTE FOR COLLABORATORS *
+// BuildJob deliberately has been designed to place each individual block during execution.
+// It uses BuildManager to call tick() once per server tick to prevent large
+// AI-generated structures from freezing the server.
+
 
 public class BuildJob {
+
     // Number of placeable blocks in one tick.
     private static final int BLOCKS_PER_TICK = 100;
     private final ServerLevel level;
     private final BlockPos origin;
     private final Blueprint blueprint;
+
+    // Stores original state of every block changed by BuildJob. A LinkedHashMap has been implemented to give us
+    // a deterministic restoration order.
+    private final Map<BlockPos, BlockState> originalStates = new LinkedHashMap<>();
     private int currentIndex = 0;
     private boolean finished = false;
     private boolean cancelled = false;
@@ -36,6 +48,11 @@ public class BuildJob {
         int blocksThisTick = 0;
         while(currentIndex < blocks.size() && blocksThisTick < BLOCKS_PER_TICK) {
             BlueprintBlock blueprintBlock = blocks.get(currentIndex);
+            BlockPos worldPosition = origin.offset(blueprintBlock.getPosition());
+
+            // Saves a copy of the original world state before it is modified.
+            // This allows the Player to reset / undo the build later on.
+            originalStates.putIfAbsent(worldPosition, level.getBlockState(worldPosition));
             StructureBuilder.placeBlock(level, origin, blueprintBlock);
             currentIndex++;
             blocksThisTick++;
@@ -46,7 +63,8 @@ public class BuildJob {
         }
     }
 
-    // Build Cancellation Function\
+    // Build Cancellation Function.
+    // NOTE: WorldState Restoration function TBA in BuildManager
     public void cancel() {
         cancelled = true;
     }
@@ -57,6 +75,10 @@ public class BuildJob {
 
     public boolean isCancelled() {
         return cancelled;
+    }
+
+    public ServerLevel getLevel() {
+        return level;
     }
 
     // Counts number of processed Blocks.
@@ -74,7 +96,15 @@ public class BuildJob {
         if(getTotalBlocks() == 0) {
             return 1.0;
         }
-
         return(double) currentIndex / getTotalBlocks();
+    }
+
+    public Blueprint getBlueprint() {
+        return blueprint;
+    }
+
+    // Returns original world state. Returned Map is immutable and cannot be externally modified.
+    public Map<BlockPos, BlockState> getOriginalStates() {
+        return Collections.unmodifiableMap(originalStates);
     }
 }

@@ -10,8 +10,7 @@ import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
 
 // Converts Alexandria's Archives Blueprint into Minecraft blocks.
-// Class is isolated from AI, Python, SpringBoot & Images as it's only function is
-// to directly translate a given Blueprint into Minecraft.
+// Class is isolated from AI, Python, SpringBoot & Images as it's only function is to directly translate a given Blueprint into Minecraft.
 
 public final class StructureBuilder {
     private StructureBuilder() {
@@ -35,6 +34,12 @@ public final class StructureBuilder {
                 blueprintBlock.getBlockID()
         );
         Block block = BuiltInRegistries.BLOCK.get(blockID);
+
+        // This should never occur as the BlueprintValidator Class checks the registry first.
+        if(block == null) {
+            return;
+        }
+
         BlockState blockState = block.defaultBlockState();
         level.setBlock(worldPosition, blockState, 3);
     }
@@ -42,11 +47,7 @@ public final class StructureBuilder {
     // Builds entire blueprint immediately.
     // For larger structures we will eventually use BuildJob to distribute placement across
     // multiple server ticks.
-    public static void placeBlock(
-            ServerLevel level,
-            BlockPos origin,
-            Blueprint blueprint
-    ) {
+    public static void placeBlock(ServerLevel level, BlockPos origin, Blueprint blueprint) {
         for(BlueprintBlock blueprintBlock : blueprint.getBlocks()) {
             placeBlock(level, origin, blueprintBlock);
         }
