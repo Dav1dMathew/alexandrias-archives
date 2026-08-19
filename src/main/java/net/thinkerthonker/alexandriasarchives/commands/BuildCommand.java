@@ -7,9 +7,11 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.thinkerthonker.alexandriasarchives.builder.BlueprintValidator;
+import net.thinkerthonker.alexandriasarchives.builder.BuildManager;
 import net.thinkerthonker.alexandriasarchives.builder.StructureBuilder;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
@@ -35,12 +37,18 @@ public class BuildCommand {
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
         return Commands.literal("build").executes(context -> {
             context.getSource().sendSuccess(
-                    () -> Component.literal("Usage: /aa build demo | /aa build <prompt>"),
+                    () -> Component.literal("Usage: /aa build demo | /aa build <prompt> | /aa build confirm | /aa build cancel | /aa build undo"),
                     false
             );
             return 1;
         }).then(Commands.literal("demo").executes(context -> executeDemo(
                 context.getSource())
+        )).then(Commands.literal("confirm").executes(context ->
+                confirmBuild(context.getSource())
+        )).then(Commands.literal("cancel").executes(context ->
+                cancelBuild(context.getSource())
+        )).then(Commands.literal("undo").executes(context ->
+                undoBuild(context.getSource())
         )).then(Commands.argument("prompt", StringArgumentType.greedyString()).executes(context ->
                 executeGenerate(context.getSource(), StringArgumentType.getString(context, "prompt"))
         ));
@@ -48,11 +56,22 @@ public class BuildCommand {
 
     // Temp function to generate demo structure.
     private static int executeDemo(CommandSourceStack source) {
-        ServerLevel level = source.getLevel();
-        BlockPos playerPosition = BlockPos.containing(source.getPosition());
+        ServerPlayer player;
+        try {
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must run by a player"));
+            return 0;
+        }
 
-        // Puts structure slightly in front of or above the player's position.
-        BlockPos buildOrigin = playerPosition.above();
+        if (BuildManager.hasActiveBuildOrPreview(player)) {
+            source.sendFailure(Component.literal("You already have an active build or preview."));
+            return 0;
+        }
+
+        ServerLevel level = source.getLevel();
+        BlockPos playerPosition = player.blockPosition();
+        BlockPos buildOrigin = playerPosition.relative(player.getDirection(), 5);
         Blueprint blueprint = createDemoBlueprint();
 
         BlueprintValidator.ValidationResult validation = BlueprintValidator.validate(blueprint);
@@ -61,10 +80,15 @@ public class BuildCommand {
             return 0;
         }
 
-        clearArea(level, buildOrigin, blueprint);
-        StructureBuilder.placeBlock(level, buildOrigin, blueprint);
-        source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
-                " containing" + blueprint.getBlockCount() + " blocks."), true);
+        boolean started = BuildManager.startPreview(player, blueprint, buildOrigin);
+        if (!started) {
+            source.sendFailure(Component.literal("Preview could not be loaded."));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Preview Ready!"), false);
+        source.sendSuccess(() -> Component.literal("Use /aa build confirm to build."), false);
+        source.sendSuccess(() -> Component.literal("Use /aa build cancel to cancel."), false);
         return 1;
     }
 
@@ -73,9 +97,27 @@ public class BuildCommand {
     // on the server thread via MinecraftServer#execute, since world edits
     // (and sendSuccess/sendFailure) aren't safe to perform off-thread.
     private static int executeGenerate(CommandSourceStack source, String prompt) {
+        ServerPlayer player;
+        try {
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must run by a player"));
+            return 0;
+        }
+
+        if (BuildManager.hasActiveBuildOrPreview(player)) {
+            source.sendFailure(Component.literal("You already have an active build or preview."));
+            return 0;
+        }
+
+        if (prompt == null || prompt.isBlank()) {
+            source.sendFailure(Component.literal("Please provide a building prompt."));
+            return 0;
+        }
+
         ServerLevel level = source.getLevel();
         MinecraftServer server = source.getServer();
-        BlockPos buildOrigin = BlockPos.containing(source.getPosition()).above();
+        BlockPos buildOrigin = player.blockPosition().relative(player.getDirection(), 5);
 
         source.sendSuccess(
                 () -> Component.literal("Sending \"" + prompt + "\" to the AI service..."),
@@ -85,7 +127,15 @@ public class BuildCommand {
         AI_SERVICE_CLIENT.generateBlueprint(prompt).whenComplete((blueprint, error) -> server.execute(() -> {
             if (error != null) {
                 String reason = error.getCause() != null ? error.getCause().getMessage() : error.getMessage();
+                if (reason == null || reason.isBlank()) {
+                    reason = "Unknown AI service error";
+                }
                 source.sendFailure(Component.literal("Failed to generate structure: " + reason));
+                return;
+            }
+
+            if (blueprint == null) {
+                source.sendFailure(Component.literal("The AI service returned no blueprint."));
                 return;
             }
 
@@ -95,37 +145,83 @@ public class BuildCommand {
                 return;
             }
 
-            clearArea(level, buildOrigin, blueprint);
-            StructureBuilder.placeBlock(level, buildOrigin, blueprint);
-            source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
-                    " containing " + blueprint.getBlockCount() + " blocks."), true);
+            boolean started = BuildManager.startPreview(player, blueprint, buildOrigin);
+            if (!started) {
+                source.sendFailure(Component.literal("Preview could not be loaded."));
+                return;
+            }
+
+            source.sendSuccess(() -> Component.literal("Alexandria's Archives: AI Preview Ready!"), true);
+            source.sendSuccess(() -> Component.literal("Use /aa build confirm to build."), false);
+            source.sendSuccess(() -> Component.literal("Use /aa build cancel to cancel."), false);
         }));
 
         return 1;
     }
 
-    // Clears a volume around the build origin before placing, sized to the
-    // incoming blueprint plus a margin. Without this, repeated /aa build
-    // calls at (roughly) the same spot only overwrite the positions the
-    // *new* blueprint actually touches - anything from a previous,
-    // differently-shaped build outside that footprint is left behind as a
-    // disconnected leftover fragment. Synchronous, so a very large build
-    // (e.g. a real-world footprint reconstruction) may cause a brief
-    // pause; acceptable for how infrequently those are built.
-    private static void clearArea(ServerLevel level, BlockPos origin, Blueprint blueprint) {
-        int margin = 5;
-        int maxSize = Math.max(blueprint.getWidth(),
-                Math.max(blueprint.getHeight(), blueprint.getDepth())) + margin;
-
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int x = -margin; x < maxSize; x++) {
-            for (int y = -margin; y < maxSize; y++) {
-                for (int z = -margin; z < maxSize; z++) {
-                    cursor.set(origin.getX() + x, origin.getY() + y, origin.getZ() + z);
-                    level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 3);
-                }
-            }
+    // Confirms the current preview and starts the actual build job.
+    private static int confirmBuild(CommandSourceStack source) {
+        ServerPlayer player;
+        try {
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must run by a player"));
+            return 0;
         }
+
+        boolean confirmed = BuildManager.confirmPreview(player);
+        if (!confirmed) {
+            source.sendFailure(Component.literal("No active preview available."));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Build Confirmed!"), true);
+        return 1;
+    }
+
+    // Player's active build is cancelled.
+    private static int cancelBuild(CommandSourceStack source) {
+        ServerPlayer player;
+        try{
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must run by a player"));
+            return 0;
+        }
+
+        if (BuildManager.cancelPreview(player)) {
+            source.sendSuccess(() -> Component.literal("Alexandria's Archives: Preview cancelled."), false);
+            return 1;
+        }
+
+        boolean cancelled = BuildManager.cancelBuild(player);
+        if(!cancelled) {
+            source.sendFailure(Component.literal("You don't have an active build or preview."));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("Requesting Build Cancellation..."), false);
+        return 1;
+    }
+
+    // Player uses "Undo" command on previous completed build.
+    private static int undoBuild(CommandSourceStack source) {
+        ServerPlayer player;
+        try {
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must run by a player"));
+            return 0;
+        }
+
+        boolean undone = BuildManager.undo(player);
+        if(!undone) {
+            source.sendFailure(Component.literal("No build available to undo."));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("Alexandria's Archives: Previous build undone."), true);
+        return 1;
     }
 
     // Demo Function hard-coded for Blueprint.
