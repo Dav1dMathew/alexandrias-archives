@@ -153,9 +153,7 @@ public final class PreviewManager {
         if (!active || origin == null) {
             return;
         }
-        if (ClientPlayNetworking.canSend(PreviewTransformPayload.TYPE)) {
-            ClientPlayNetworking.send(new PreviewTransformPayload(origin, rotation));
-        }
+        ClientPlayNetworking.send(new PreviewTransformPayload(origin, rotation));
     }
 
     // Moves preview.
