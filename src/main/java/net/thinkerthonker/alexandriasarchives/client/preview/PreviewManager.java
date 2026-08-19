@@ -1,12 +1,13 @@
 package net.thinkerthonker.alexandriasarchives.client.preview;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.state.BlockState;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
 import net.thinkerthonker.alexandriasarchives.network.PreviewPayload;
+import net.thinkerthonker.alexandriasarchives.network.PreviewTransformPayload;
 import org.lwjgl.glfw.GLFW;
 
 // This class controls the client-side preview of one Alexandria's Archives blueprint without
@@ -48,8 +49,7 @@ public final class PreviewManager {
         }
         previousR = rPressed;
 
-        // Arrow keys move the local preview only. The server-side build remains unchanged
-        // until Week 4 transform networking is enabled.
+        // Arrow keys move the local preview and synchronize the transform with the server.
         if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_UP)) {
             move(0, 0, -1);
         }
@@ -149,12 +149,22 @@ public final class PreviewManager {
         return origin;
     }
 
+    private static void synchronizeTransform() {
+        if (!active || origin == null) {
+            return;
+        }
+        if (ClientPlayNetworking.canSend(PreviewTransformPayload.TYPE)) {
+            ClientPlayNetworking.send(new PreviewTransformPayload(origin, rotation));
+        }
+    }
+
     // Moves preview.
     public static void move(int x, int y, int z) {
         if(!active || origin == null) {
             return;
         }
         origin = origin.offset(x, y, z);
+        synchronizeTransform();
     }
 
     // Preview is rotated 90-degrees clockwise.
@@ -163,6 +173,7 @@ public final class PreviewManager {
             return;
         }
         rotation = (rotation + 1) % 4;
+        synchronizeTransform();
     }
 
     // Returns current rotation.
