@@ -9,12 +9,11 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Blocks;
 import net.thinkerthonker.alexandriasarchives.builder.BlueprintValidator;
 import net.thinkerthonker.alexandriasarchives.builder.BuildManager;
-import net.thinkerthonker.alexandriasarchives.builder.StructureBuilder;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
+import net.thinkerthonker.alexandriasarchives.network.PreviewNetworking;
 import net.thinkerthonker.alexandriasarchives.service.AiServiceClient;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,7 +85,9 @@ public class BuildCommand {
             return 0;
         }
 
+        PreviewNetworking.sendPreview(player, blueprint, buildOrigin, 0);
         source.sendSuccess(() -> Component.literal("Alexandria's Archives: Preview Ready!"), false);
+        source.sendSuccess(() -> Component.literal("Controls: R = rotate | Arrow Keys = move | Page Up/Down = vertical move"), false);
         source.sendSuccess(() -> Component.literal("Use /aa build confirm to build."), false);
         source.sendSuccess(() -> Component.literal("Use /aa build cancel to cancel."), false);
         return 1;
@@ -115,7 +116,6 @@ public class BuildCommand {
             return 0;
         }
 
-        ServerLevel level = source.getLevel();
         MinecraftServer server = source.getServer();
         BlockPos buildOrigin = player.blockPosition().relative(player.getDirection(), 5);
 
@@ -151,7 +151,9 @@ public class BuildCommand {
                 return;
             }
 
+            PreviewNetworking.sendPreview(player, blueprint, buildOrigin, 0);
             source.sendSuccess(() -> Component.literal("Alexandria's Archives: AI Preview Ready!"), true);
+            source.sendSuccess(() -> Component.literal("Controls: R = rotate | Arrow Keys = move | Page Up/Down = vertical move"), false);
             source.sendSuccess(() -> Component.literal("Use /aa build confirm to build."), false);
             source.sendSuccess(() -> Component.literal("Use /aa build cancel to cancel."), false);
         }));
@@ -175,6 +177,7 @@ public class BuildCommand {
             return 0;
         }
 
+        PreviewNetworking.sendStop(player);
         source.sendSuccess(() -> Component.literal("Alexandria's Archives: Build Confirmed!"), true);
         return 1;
     }
@@ -190,6 +193,7 @@ public class BuildCommand {
         }
 
         if (BuildManager.cancelPreview(player)) {
+            PreviewNetworking.sendStop(player);
             source.sendSuccess(() -> Component.literal("Alexandria's Archives: Preview cancelled."), false);
             return 1;
         }
@@ -200,6 +204,7 @@ public class BuildCommand {
             return 0;
         }
 
+        PreviewNetworking.sendStop(player);
         source.sendSuccess(() -> Component.literal("Requesting Build Cancellation..."), false);
         return 1;
     }
