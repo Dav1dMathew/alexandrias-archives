@@ -221,9 +221,9 @@ export const Cinematic: React.FC = () => (
     <Soundtrack />
     <Vignette />
 
-    {/* 1 - the subject arrives, very small, slowly turning */}
+    {/* 1 - the subject arrives, still distant, slowly turning */}
     <Sequence from={0} durationInFrames={200}>
-      <HeroShot name="tower" duration={200} fromSize={120} toSize={210} turns={0.5} />
+      <HeroShot name="tower" duration={200} fromSize={300} toSize={520} turns={0.5} />
       <Caption at={40} hold={110}>
         Every structure carries knowledge.
       </Caption>
@@ -239,8 +239,8 @@ export const Cinematic: React.FC = () => (
       <HeroShot
         name="dome"
         duration={225}
-        fromSize={230}
-        toSize={330}
+        fromSize={620}
+        toSize={860}
         turns={0.62}
         explodeAt={130}
       />
@@ -259,8 +259,8 @@ export const Cinematic: React.FC = () => (
       <HeroShot
         name="aircraft"
         duration={215}
-        fromSize={250}
-        toSize={340}
+        fromSize={700}
+        toSize={940}
         turns={0.7}
       />
       <Caption at={34} hold={140}>
