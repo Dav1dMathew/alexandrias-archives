@@ -29,6 +29,10 @@ public class PreviewSession {
         return rotation;
     }
 
+    public void setRotation(int rotation) {
+        this.rotation = Math.floorMod(rotation, 4);
+    }
+
     public void rotate() {
         rotation = (rotation + 1) % 4;
     }
