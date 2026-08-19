@@ -16,12 +16,12 @@ ARCHETYPE_KEYWORDS: dict[str, set[str]] = {
         "stadium", "hippodrome",
         # temples / religious & ceremonial buildings
         "temple", "pantheon", "acropolis", "shrine", "cathedral", "basilica",
-        "church", "chapel", "mosque", "synagogue", "monastery", "abbey",
-        "ziggurat", "pyramid", "mausoleum", "tomb",
+        "church", "chapel", "synagogue", "monastery", "abbey",
+        "ziggurat", "pyramid",
         # grand civic / government buildings
-        "forum", "palace", "capitol", "parliament", "senate", "courthouse",
-        "museum", "library", "monument", "memorial", "mansion", "villa",
-        "estate", "manor",
+        "forum", "capitol", "parliament", "senate", "courthouse",
+        "museum", "library", "monument", "memorial", "palace", "mansion",
+        "villa", "estate", "manor",
     },
     "tower": {
         "tower", "lighthouse", "spire", "minaret", "obelisk", "skyscraper",
@@ -36,6 +36,10 @@ ARCHETYPE_KEYWORDS: dict[str, set[str]] = {
     },
     "wheel": {
         "wheel", "carousel", "ferris",
+    },
+    "dome": {
+        "dome", "mausoleum", "tomb", "mosque", "cathedral", "basilica",
+        "planetarium", "rotunda", "observatory", "capitol_dome",
     },
 }
 DEFAULT_ARCHETYPE = "house"
@@ -67,7 +71,7 @@ DEFAULT_MATERIAL = "minecraft:stone_bricks"
 # BlueprintValidator can actually place, instead of trusting the model to
 # invent a valid Minecraft block ID.
 VALID_MATERIALS = sorted({DEFAULT_MATERIAL, *MATERIAL_KEYWORDS.values()})
-VALID_ARCHETYPES = ("house", "tower", "temple", "wheel")
+VALID_ARCHETYPES = ("house", "tower", "temple", "wheel", "dome")
 VALID_SCALE_TIERS = ("mini", "medium", "huge")
 VALID_LEAN_DIRECTIONS = ("x", "z")
 # Clamp: a real-world lean beyond this looks absurd and blows up the
@@ -77,6 +81,8 @@ MAX_LEAN_DEGREES = 15.0
 # Tower shape - the actual silhouette, not just a resized box.
 VALID_CROSS_SECTIONS = ("square", "circular", "y_shape")
 DEFAULT_CROSS_SECTION = "square"
+
+MAX_ACCESSORY_COUNT = 8
 
 
 @dataclass
@@ -103,6 +109,10 @@ class GenerationParams:
     cross_section: str = "square"
     taper_ratio: float = 0.0
     setback_tiers: int = 0
+    # Multi-part structures - e.g. the Taj Mahal's 4 freestanding corner
+    # minarets around its central dome. accessory_count small towers get
+    # generated and merged in around the main structure's perimeter.
+    accessory_count: int = 0
 
 
 def _tokenize(prompt: str) -> set[str]:

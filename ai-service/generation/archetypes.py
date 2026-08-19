@@ -147,6 +147,22 @@ def _y_shape_outline(cx: float, cz: float, size: int, filled: bool):
     yield from points
 
 
+def _normalize_xz_bounds(blocks: list[Block]) -> tuple[list[Block], int, int]:
+    # _circular_outline's loose ring-matching tolerance can produce points
+    # slightly outside the caller's assumed size/diameter (it searches a
+    # window padded by 1 to catch near-miss ring hits) - so anything using
+    # it can't just trust a formula-derived bounding box. Recomputes width/
+    # depth from the actual block positions and shifts to start at (0, *, 0),
+    # which BlueprintValidator requires.
+    xs = [b[0] for b in blocks]
+    zs = [b[2] for b in blocks]
+    min_x, min_z = min(xs), min(zs)
+    normalized = [(x - min_x, y, z - min_z, m) for x, y, z, m in blocks]
+    width = max(xs) - min_x + 1
+    depth = max(zs) - min_z + 1
+    return normalized, width, depth
+
+
 def _layer_outline(cross_section: str, cx: float, cz: float, size: int, filled: bool):
     if cross_section == "circular":
         yield from _circular_outline(cx, cz, size, filled)
@@ -191,19 +207,7 @@ def generate_tower(params: GenerationParams) -> tuple[list[Block], int, int, int
         for x, z in _square_outline(cx, cz, top_size, filled=False, step=2):
             blocks.append((x, merlon_y, z, params.wall_material))
 
-    xs = [b[0] for b in blocks]
-    zs = [b[2] for b in blocks]
-    min_x, max_x = min(xs), max(xs)
-    min_z, max_z = min(zs), max(zs)
-
-    # Shift everything so the bounding box starts at (0, *, 0) - taper/
-    # lean can push coordinates below 0 or beyond base_size, and the
-    # Blueprint contract requires all-non-negative, tightly-bounded
-    # coordinates (BlueprintValidator checks this).
-    blocks = [(x - min_x, y, z - min_z, material) for x, y, z, material in blocks]
-    width = max_x - min_x + 1
-    depth = max_z - min_z + 1
-
+    blocks, width, depth = _normalize_xz_bounds(blocks)
     return blocks, width, merlon_y + 1, depth
 
 
@@ -277,12 +281,86 @@ def generate_wheel(params: GenerationParams) -> tuple[list[Block], int, int, int
     return blocks, diameter, diameter, thickness
 
 
+def generate_dome(params: GenerationParams) -> tuple[list[Block], int, int, int]:
+    # A rounded dome, not a tapering cone - the radius follows a
+    # hemisphere profile (r = R*sqrt(1 - t^2)) rather than shrinking
+    # linearly, which is what actually reads as "dome" instead of
+    # "pointy roof." Sits on a short cylindrical drum, the way most real
+    # domed buildings do (Taj Mahal, mosques, capitol buildings).
+    base_radius = _scale(9, params, minimum=5)
+    drum_height = max(2, base_radius // 3)
+    dome_height = base_radius
+    diameter = base_radius * 2 + 1
+    center = base_radius
+
+    blocks: list[Block] = []
+
+    for x, z in _circular_outline(center, center, diameter, filled=True):
+        blocks.append((x, 0, z, FLOOR_MATERIAL))
+
+    for y in range(1, drum_height + 1):
+        for x, z in _circular_outline(center, center, diameter, filled=False):
+            blocks.append((x, y, z, params.wall_material))
+
+    for dy in range(0, dome_height + 1):
+        y = drum_height + dy
+        t = dy / dome_height
+        radius_here = base_radius * math.sqrt(max(0.0, 1 - t * t))
+        if radius_here < 0.5:
+            blocks.append((center, y, center, params.wall_material))
+            continue
+        for x, z in _circular_outline(center, center, round(radius_here * 2), filled=False):
+            blocks.append((x, y, z, params.wall_material))
+
+    blocks, width, depth = _normalize_xz_bounds(blocks)
+    return blocks, width, drum_height + dome_height + 1, depth
+
+
 GENERATORS = {
     "house": generate_house,
     "tower": generate_tower,
     "temple": generate_temple,
     "wheel": generate_wheel,
+    "dome": generate_dome,
 }
+
+
+def _add_accessories(
+    blocks: list[Block], params: GenerationParams
+) -> list[Block]:
+    # Freestanding small towers around the main structure's perimeter -
+    # e.g. the Taj Mahal's 4 corner minarets, distinct volumes standing
+    # apart from the dome, not part of its shape.
+    if params.accessory_count <= 0:
+        return blocks
+
+    main_xs = [b[0] for b in blocks]
+    main_zs = [b[2] for b in blocks]
+    center_x = (min(main_xs) + max(main_xs)) / 2
+    center_z = (min(main_zs) + max(main_zs)) / 2
+    main_span = max(max(main_xs) - min(main_xs), max(main_zs) - min(main_zs))
+
+    accessory_params = GenerationParams(
+        archetype="tower",
+        scale_tier="mini",
+        wall_material=params.wall_material,
+        prompt=params.prompt,
+        cross_section="circular",
+    )
+    accessory_blocks, aw, _, ad = generate_tower(accessory_params)
+    accessory_span = max(aw, ad)
+
+    placement_radius = main_span / 2 + accessory_span / 2 + 2
+
+    combined = list(blocks)
+    for i in range(params.accessory_count):
+        angle = 2 * math.pi * i / params.accessory_count
+        offset_x = round(center_x + placement_radius * math.cos(angle) - aw / 2)
+        offset_z = round(center_z + placement_radius * math.sin(angle) - ad / 2)
+        for x, y, z, material in accessory_blocks:
+            combined.append((x + offset_x, y, z + offset_z, material))
+
+    return combined
 
 
 def _slugify(prompt: str) -> str:
@@ -302,6 +380,21 @@ def _dedupe(blocks: list[Block]) -> list[Block]:
 def generate_blueprint(params: GenerationParams) -> dict:
     generator = GENERATORS[params.archetype]
     blocks, width, height, depth = generator(params)
+
+    if params.accessory_count > 0 and params.archetype != "tower":
+        blocks = _add_accessories(blocks, params)
+        # Accessories can extend past the main structure's original
+        # bounding box in every direction - recompute it from the
+        # combined set and re-shift to start at (0, *, 0), same
+        # requirement as every individual generator already satisfies.
+        xs = [b[0] for b in blocks]
+        zs = [b[2] for b in blocks]
+        min_x, min_z = min(xs), min(zs)
+        blocks = [(x - min_x, y, z - min_z, m) for x, y, z, m in blocks]
+        width = max(xs) - min_x + 1
+        depth = max(zs) - min_z + 1
+        height = max(height, max(b[1] for b in blocks) + 1)
+
     blocks = _dedupe(blocks)
 
     return {

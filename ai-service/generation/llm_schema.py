@@ -19,6 +19,7 @@ from .parser import (
     DEFAULT_ARCHETYPE,
     DEFAULT_SCALE,
     DEFAULT_MATERIAL,
+    MAX_ACCESSORY_COUNT,
 )
 
 MAX_TAPER_RATIO = 0.85
@@ -36,7 +37,14 @@ Return ONLY a single JSON object, no other text, matching exactly this shape:
   "archetype": one of {archetypes} - use "wheel" for anything that is fundamentally \
 a ring/wheel shape (a Ferris wheel, an observation wheel like the London Eye, a \
 carousel) - this is a real, different shape (a ring standing upright), not a resized \
-tower. Do not force a wheel-shaped structure into "tower".
+tower. Use "dome" for anything whose defining feature is a rounded dome roof (a \
+mosque, a mausoleum like the Taj Mahal, a capitol building, a basilica) - this is a \
+real rounded hemisphere, not a tapering "tower". Do not force a domed or wheel-shaped \
+structure into "tower".
+  "accessory_count": an integer from 0 to {max_accessories} - number of freestanding \
+small towers/minarets around the main structure's perimeter, ONLY if this building is \
+specifically known for them (e.g. the Taj Mahal has exactly 4 corner minarets). 0 for \
+anything without genuinely separate corner towers - do not guess a number.
   "scale_tier": one of {scales},
   "material": one of {materials},
   "lean_angle_degrees": a number from 0 to {max_lean} - ONLY nonzero if this specific \
@@ -91,6 +99,7 @@ def build_extraction_prompt(prompt: str) -> str:
         cross_sections=list(VALID_CROSS_SECTIONS),
         max_taper=MAX_TAPER_RATIO,
         max_setbacks=MAX_SETBACK_TIERS,
+        max_accessories=MAX_ACCESSORY_COUNT,
     )
 
 
@@ -125,6 +134,11 @@ def parse_llm_json(parsed, prompt: str) -> GenerationParams | None:
         archetype,
     )
 
+    try:
+        accessory_count = max(0, min(int(parsed.get("accessory_count", 0)), MAX_ACCESSORY_COUNT))
+    except (TypeError, ValueError):
+        accessory_count = 0
+
     return GenerationParams(
         archetype=archetype,
         scale_tier=scale_tier,
@@ -137,6 +151,7 @@ def parse_llm_json(parsed, prompt: str) -> GenerationParams | None:
         cross_section=cross_section,
         taper_ratio=taper_ratio,
         setback_tiers=setback_tiers,
+        accessory_count=accessory_count,
     )
 
 

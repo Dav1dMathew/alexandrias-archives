@@ -8,7 +8,7 @@ from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 
 from generation import parse_prompt, parse_prompt_llm, generate_blueprint
-from generation.parser import match_archetype
+from generation.parser import match_archetype, DEFAULT_ARCHETYPE
 from generation.osm_lookup import lookup_real_building
 from generation.footprint_builder import build_from_footprint
 from generation.image_source import fetch_reference_image_bytes
@@ -92,126 +92,94 @@ async def analyze(file: UploadFile = File(...)):
     return build_mock_blueprint()
 
 
+def _mosaic_response(prompt: str, image_bytes: bytes) -> dict | None:
+    mosaic = build_mosaic(image_bytes)
+    if mosaic is None:
+        return None
+    blocks, width, height, depth = mosaic
+    display_name = prompt.strip()
+    return {
+        "id": _slugify(display_name),
+        "name": display_name,
+        "width": width,
+        "height": height,
+        "depth": depth,
+        "blocks": [
+            {"x": x, "y": y, "z": z, "blockId": block_id}
+            for x, y, z, block_id in blocks
+        ],
+        "reasoning": (
+            "Reproduced as an extruded block-color mosaic from a real "
+            "reference photo (Wikipedia) - matches the photo's actual "
+            "silhouette and colors, not a 3D template guess."
+        ),
+        "attributes": [
+            {
+                "field": "source",
+                "value": "real photo, Wikipedia main image for this page",
+                "provenance": "documented",
+            },
+            {
+                "field": "form",
+                "value": "solid extruded mosaic relief, not a hollow walkable building",
+                "provenance": "documented",
+            },
+        ],
+    }
+
+
+def _osm_response(prompt: str, osm_building: dict, material: str) -> dict | None:
+    try:
+        blocks, width, height, depth = build_from_footprint(
+            osm_building["points_latlon"], osm_building["height_meters"], material,
+        )
+    except ValueError:
+        return None  # footprint collapsed after scaling
+
+    display_name = prompt.strip() or osm_building["name"]
+    return {
+        "id": _slugify(display_name),
+        "name": display_name,
+        "width": width,
+        "height": height,
+        "depth": depth,
+        "blocks": [
+            {"x": x, "y": y, "z": z, "blockId": block_id}
+            for x, y, z, block_id in blocks
+        ],
+        "reasoning": (
+            f"Traced from {osm_building['name']}'s real footprint on "
+            "OpenStreetMap, extruded to its real/estimated height - "
+            "not a template guess."
+        ),
+        "attributes": [
+            {
+                "field": "height",
+                "value": f"{osm_building['height_meters']:.0f} m",
+                "provenance": "documented",
+            },
+            {
+                "field": "footprint",
+                "value": "real traced outline from OpenStreetMap",
+                "provenance": "documented",
+            },
+        ],
+    }
+
+
 @app.post("/generate", response_model=Blueprint)
 async def generate(request: GenerateRequest):
-    # Real-world lookups (Wikipedia photo mosaic, OSM footprint) only
-    # make sense when the prompt actually names a specific real subject.
-    # A confident keyword match (e.g. "a small wooden house" matching
-    # "house") means it's a generic description, not a named place - and
-    # both Wikipedia's and Nominatim's fuzzy search will confidently
-    # return *something* for almost any query, so without this gate a
-    # totally generic prompt could get hijacked into a random article's
-    # photo or a random building's footprint instead of the reliable
-    # archetype system. Named-subject prompts (no keyword match) try
-    # mosaic -> OSM -> archetype/LLM in that order below.
-    keyword_matched = match_archetype(request.prompt) is not None
-
-    # First: a real photo, reproduced as an extruded block-color mosaic.
-    # Tried before OSM on purpose - a photo captures color, domes,
-    # ornamentation and anything else that isn't "footprint extruded
-    # straight up," which is all OSM's plain extrusion can ever produce.
-    # For an ornate/domed building (e.g. the Taj Mahal) tracing its real
-    # footprint with a single material just gives a flat, colorless,
-    # oddly-angled outline - genuinely worse than a real photo's
-    # silhouette and colors, even though OSM's geometry is "more real."
-    image_bytes = None if keyword_matched else await asyncio.to_thread(
-        fetch_reference_image_bytes, request.prompt
-    )
-    if image_bytes is not None:
-        mosaic = build_mosaic(image_bytes)
-        if mosaic is not None:
-            blocks, width, height, depth = mosaic
-            display_name = request.prompt.strip()
-            return {
-                "id": _slugify(display_name),
-                "name": display_name,
-                "width": width,
-                "height": height,
-                "depth": depth,
-                "blocks": [
-                    {"x": x, "y": y, "z": z, "blockId": block_id}
-                    for x, y, z, block_id in blocks
-                ],
-                "reasoning": (
-                    "Reproduced as an extruded block-color mosaic from a real "
-                    "reference photo (Wikipedia) - matches the photo's actual "
-                    "silhouette and colors, not a 3D template guess."
-                ),
-                "attributes": [
-                    {
-                        "field": "source",
-                        "value": "real photo, Wikipedia main image for this page",
-                        "provenance": "documented",
-                    },
-                    {
-                        "field": "form",
-                        "value": "solid extruded mosaic relief, not a hollow walkable building",
-                        "provenance": "documented",
-                    },
-                ],
-            }
-
-    # Second: OSM's real traced footprint - used when there's no good
-    # photo (Wikipedia has no image for this subject), for buildings
-    # boxy enough that a straight extrusion actually looks right.
-    osm_building = None if keyword_matched else await asyncio.to_thread(
-        lookup_real_building, request.prompt
-    )
-    if osm_building is not None:
-        material = parse_prompt(request.prompt).wall_material
-        try:
-            blocks, width, height, depth = build_from_footprint(
-                osm_building["points_latlon"], osm_building["height_meters"], material,
-            )
-        except ValueError:
-            blocks = None  # footprint collapsed after scaling - fall through
-
-        if blocks:
-            display_name = request.prompt.strip() or osm_building["name"]
-            return {
-                "id": _slugify(display_name),
-                "name": display_name,
-                "width": width,
-                "height": height,
-                "depth": depth,
-                "blocks": [
-                    {"x": x, "y": y, "z": z, "blockId": block_id}
-                    for x, y, z, block_id in blocks
-                ],
-                "reasoning": (
-                    f"Traced from {osm_building['name']}'s real footprint on "
-                    "OpenStreetMap, extruded to its real/estimated height - "
-                    "not a template guess."
-                ),
-                "attributes": [
-                    {
-                        "field": "height",
-                        "value": f"{osm_building['height_meters']:.0f} m",
-                        "provenance": "documented",
-                    },
-                    {
-                        "field": "footprint",
-                        "value": "real traced outline from OpenStreetMap",
-                        "provenance": "documented",
-                    },
-                ],
-            }
-
     # Hybrid: the keyword parser is a small, fixed vocabulary but is
-    # deterministic and reliable when it actually matches. The local LLM
-    # (via Ollama - free, no API key) is not consistently better at
-    # archetype classification - a 3B model misclassifies famous buildings
-    # it should know - but it's genuinely good at the thing that actually
-    # differentiates this project: honestly labeling how confident each
-    # extracted fact is (documented/inferred/ai_generated/unknown) rather
-    # than presenting a guess as fact.
-    #
-    # So: trust the keyword parser's archetype/scale/material whenever it
-    # has a confident (non-default) match, and always keep the LLM's
-    # reasoning/attributes for the provenance layer. parse_prompt_llm()
-    # never raises - it returns None on any failure (Ollama not running,
-    # timeout, malformed output) - so /generate always succeeds even
-    # without a local model available.
+    # deterministic and reliable when it actually matches. The LLM
+    # (Groq if configured, else local Ollama) picks from a much richer
+    # set of real 3D shapes now - house/tower/temple/wheel/dome, plus
+    # geometric parameters (lean, taper, cross-section, freestanding
+    # accessory towers) - so a landmark it can actually recognize (the
+    # Taj Mahal -> dome + 4 minarets, a Ferris wheel -> wheel, the Burj
+    # Khalifa -> tapering tower) gets real, walkable 3D geometry, not a
+    # flat photo. parse_prompt_llm() never raises - None means both Groq
+    # and Ollama failed/aren't configured.
+    keyword_matched = match_archetype(request.prompt) is not None
     keyword_params = parse_prompt(request.prompt)
     llm_params = await asyncio.to_thread(parse_prompt_llm, request.prompt)
 
@@ -220,8 +188,8 @@ async def generate(request: GenerateRequest):
     elif keyword_matched:
         # Keyword parser found a confident match - trust its base shape,
         # but keep the LLM's honest reasoning/provenance AND any real
-        # geometric parameters it found (e.g. an actual lean angle) - the
-        # keyword parser has no concept of those at all.
+        # geometric parameters it found (lean, taper, accessories, ...) -
+        # the keyword parser has no concept of those at all.
         params = keyword_params
         params.reasoning = llm_params.reasoning
         params.attributes = llm_params.attributes
@@ -230,7 +198,28 @@ async def generate(request: GenerateRequest):
         params.cross_section = llm_params.cross_section
         params.taper_ratio = llm_params.taper_ratio
         params.setback_tiers = llm_params.setback_tiers
+        params.accessory_count = llm_params.accessory_count
     else:
         params = llm_params
+
+    # If this names a specific real subject (no keyword match) but even
+    # the LLM could only muster the bare default archetype for it, that's
+    # a weak result - the model doesn't know this well enough to pick a
+    # real shape. Rescue with real data instead of shipping a generic
+    # guess: try a real photo mosaic, then OSM's real footprint, before
+    # falling back to the (unconvincing) archetype guess after all.
+    needs_rescue = not keyword_matched and params.archetype == DEFAULT_ARCHETYPE
+    if needs_rescue:
+        image_bytes = await asyncio.to_thread(fetch_reference_image_bytes, request.prompt)
+        if image_bytes is not None:
+            response = _mosaic_response(request.prompt, image_bytes)
+            if response is not None:
+                return response
+
+        osm_building = await asyncio.to_thread(lookup_real_building, request.prompt)
+        if osm_building is not None:
+            response = _osm_response(request.prompt, osm_building, params.wall_material)
+            if response is not None:
+                return response
 
     return generate_blueprint(params)
