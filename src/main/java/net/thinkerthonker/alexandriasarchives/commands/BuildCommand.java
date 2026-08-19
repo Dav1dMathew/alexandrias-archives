@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
 import net.thinkerthonker.alexandriasarchives.builder.BlueprintValidator;
 import net.thinkerthonker.alexandriasarchives.builder.StructureBuilder;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
@@ -60,6 +61,7 @@ public class BuildCommand {
             return 0;
         }
 
+        clearArea(level, buildOrigin, blueprint);
         StructureBuilder.placeBlock(level, buildOrigin, blueprint);
         source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
                 " containing" + blueprint.getBlockCount() + " blocks."), true);
@@ -93,12 +95,37 @@ public class BuildCommand {
                 return;
             }
 
+            clearArea(level, buildOrigin, blueprint);
             StructureBuilder.placeBlock(level, buildOrigin, blueprint);
             source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
                     " containing " + blueprint.getBlockCount() + " blocks."), true);
         }));
 
         return 1;
+    }
+
+    // Clears a volume around the build origin before placing, sized to the
+    // incoming blueprint plus a margin. Without this, repeated /aa build
+    // calls at (roughly) the same spot only overwrite the positions the
+    // *new* blueprint actually touches - anything from a previous,
+    // differently-shaped build outside that footprint is left behind as a
+    // disconnected leftover fragment. Synchronous, so a very large build
+    // (e.g. a real-world footprint reconstruction) may cause a brief
+    // pause; acceptable for how infrequently those are built.
+    private static void clearArea(ServerLevel level, BlockPos origin, Blueprint blueprint) {
+        int margin = 5;
+        int maxSize = Math.max(blueprint.getWidth(),
+                Math.max(blueprint.getHeight(), blueprint.getDepth())) + margin;
+
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = -margin; x < maxSize; x++) {
+            for (int y = -margin; y < maxSize; y++) {
+                for (int z = -margin; z < maxSize; z++) {
+                    cursor.set(origin.getX() + x, origin.getY() + y, origin.getZ() + z);
+                    level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 3);
+                }
+            }
+        }
     }
 
     // Demo Function hard-coded for Blueprint.
