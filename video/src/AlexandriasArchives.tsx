@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, Sequence, useCurrentFrame } from "remotion";
 import { Backdrop } from "./components";
+import { Soundtrack } from "./Soundtrack";
 import { Title } from "./scenes/Title";
 import { Problem } from "./scenes/Problem";
 import { Pipeline } from "./scenes/Pipeline";
@@ -48,6 +49,7 @@ export const AlexandriasArchives: React.FC = () => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0d1b2a" }}>
+      <Soundtrack />
       <Backdrop />
       {scenes.map(({ Component, duration }, index) => {
         const from = cursor;
