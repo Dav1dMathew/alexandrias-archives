@@ -5,23 +5,37 @@ import {
   OffthreadVideo,
   staticFile,
   useCurrentFrame,
+  useVideoConfig,
 } from "remotion";
 import { fontStack } from "../theme";
 import { launch } from "../launchTheme";
 
-// Live-action VR footage, graded into the launch palette. The source is
-// bright warm daylight at 24fps; Remotion maps it by time so the 30fps
-// composition doesn't need it conformed first. Audio is muted - the
+// Live-action footage graded into the launch palette. Sources arrive as
+// bright warm daylight at 24fps; Remotion maps them by time so the 30fps
+// composition doesn't need them conformed first. Audio is muted - the
 // music track carries the whole cut.
-export const VRPlate: React.FC<{
+export const FootagePlate: React.FC<{
+  src: string;
   duration: number;
   headline?: string;
   caption?: string;
   /** Seconds into the source clip to begin. */
   startAtSeconds?: number;
   grade?: number;
-}> = ({ duration, headline, caption, startAtSeconds = 0, grade = 1 }) => {
+  /** 0 = top of frame, 1 = bottom. Default sits in the lower third,
+   *  which keeps type clear of the subject's face. */
+  headlineY?: number;
+}> = ({
+  src,
+  duration,
+  headline,
+  caption,
+  startAtSeconds = 0,
+  grade = 1,
+  headlineY = 0.66,
+}) => {
   const frame = useCurrentFrame();
+  const { height } = useVideoConfig();
 
   const opacity = interpolate(frame, [0, 20, duration - 22, duration], [0, 1, 1, 0], {
     extrapolateLeft: "clamp",
@@ -40,7 +54,7 @@ export const VRPlate: React.FC<{
     <AbsoluteFill style={{ opacity, background: launch.bgDeep, overflow: "hidden" }}>
       <AbsoluteFill style={{ transform: `scale(${scale})` }}>
         <OffthreadVideo
-          src={staticFile("vr.mp4")}
+          src={staticFile(src)}
           startFrom={Math.round(startAtSeconds * 30)}
           muted
           style={{
@@ -70,8 +84,13 @@ export const VRPlate: React.FC<{
         <AbsoluteFill
           style={{
             alignItems: "center",
+            // Fraction of frame height, resolved against the composition's
+            // real height in pixels. A percentage would silently resolve
+            // against the *width* (CSS resolves padding percentages on the
+            // inline axis), which pushed the line 1344px down a 1080px
+            // frame and off screen entirely.
             justifyContent: "flex-start",
-            paddingTop: 92,
+            paddingTop: headlineY * height,
             opacity: headlineIn,
           }}
         >

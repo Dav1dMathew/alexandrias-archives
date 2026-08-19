@@ -14,7 +14,7 @@ import { PhotoPlate } from "./cine/PhotoPlate";
 import { Grain, Glow } from "./cine/Grain";
 import { SplitScreen } from "./cine/SplitScreen";
 import { Immersive } from "./cine/Immersive";
-import { VRPlate } from "./cine/VRPlate";
+import { FootagePlate } from "./cine/FootagePlate";
 import { fontStack } from "./theme";
 import { launch } from "./launchTheme";
 
@@ -364,24 +364,36 @@ export const Launch: React.FC = () => (
     <Ground />
 
     {/* ============ ACT 1 - THE PROBLEM (0 to the drop at 453) ============
-        The track is breaking down through here, so the visuals hold long
-        and get quieter as the mix thins out. */}
+        Real footage now carries this act. The track is breaking down
+        through here, so shots hold long and get quieter as the mix thins.
+        Beats: how we recorded buildings -> why that fails to teach ->
+        what happens when the building itself is gone. */}
 
-    <Sequence from={0} durationInFrames={168}>
-      <PhotoPlate src="photos/pisa.jpg" duration={168} zoomFrom={1.05} zoomTo={1.17} dim={0.62} variant="dark" />
-      <Headline text="For centuries, we recorded buildings on paper." duration={168} size={74} />
+    <Sequence from={0} durationInFrames={172}>
+      <FootagePlate
+        src="historian.mp4"
+        duration={172}
+        headline="For centuries, we recorded buildings on paper."
+        headlineY={0.7}
+        startAtSeconds={0}
+      />
     </Sequence>
 
-    <Sequence from={158} durationInFrames={158}>
-      <PhotoPlate src="photos/blueprint.jpg" duration={158} zoomFrom={1.1} zoomTo={1.22} panX={-24} dim={0.6} variant="dark" />
-      <Headline text="Plans. Elevations. Records." duration={158} size={80} />
+    <Sequence from={162} durationInFrames={166}>
+      <FootagePlate
+        src="teaching.mp4"
+        duration={166}
+        headline="But you can’t walk through a diagram."
+        headlineY={0.7}
+        startAtSeconds={2}
+      />
     </Sequence>
 
-    {/* Last statement lands into the breakdown and clears just before
-        the drop, leaving a beat of near-empty frame. */}
-    <Sequence from={306} durationInFrames={150}>
-      <PhotoPlate src="photos/colosseum.jpg" duration={150} zoomFrom={1.06} zoomTo={1.2} dim={0.66} variant="dark" />
-      <Headline text="And a building can be lost entirely." duration={150} size={78} accentFrom={3} />
+    {/* Lands into the breakdown and clears just before the drop, leaving
+        a beat of near-empty frame. */}
+    <Sequence from={318} durationInFrames={140}>
+      <PhotoPlate src="photos/colosseum.jpg" duration={140} zoomFrom={1.06} zoomTo={1.2} dim={0.66} variant="dark" />
+      <Headline text="And the building itself can be lost." duration={140} size={76} accentFrom={3} />
     </Sequence>
 
     {/* ================= THE DROP - PRODUCT REVEAL (453) =================
@@ -395,9 +407,11 @@ export const Launch: React.FC = () => (
 
     {/* 2 bars - real footage: she puts the headset on */}
     <Sequence from={bar(2)} durationInFrames={bar(5) - bar(2)}>
-      <VRPlate
+      <FootagePlate
+        src="vr.mp4"
         duration={bar(5) - bar(2)}
         headline="Then step inside it."
+        headlineY={0.7}
         startAtSeconds={0}
       />
     </Sequence>
