@@ -236,10 +236,52 @@ def generate_temple(params: GenerationParams) -> tuple[list[Block], int, int, in
     return blocks, diameter, column_height + 1, diameter
 
 
+HUB_MATERIAL = "minecraft:iron_block"
+SPOKE_MATERIAL = "minecraft:iron_bars"
+
+
+def generate_wheel(params: GenerationParams) -> tuple[list[Block], int, int, int]:
+    # A Ferris wheel isn't a resized box - it's a ring standing in a
+    # vertical plane (x/y), with some thickness front-to-back (z). This
+    # is the shape none of house/tower/temple can produce at all, no
+    # matter how they're parameterized.
+    outer_radius = _scale(10, params, minimum=6)
+    ring_width = max(2, outer_radius // 6)
+    inner_radius = outer_radius - ring_width
+    thickness = max(2, outer_radius // 5)
+    hub_radius = max(1, outer_radius // 8)
+    num_spokes = 16
+
+    diameter = outer_radius * 2 + 1
+    center = outer_radius
+
+    blocks: list[Block] = []
+
+    for z in range(thickness):
+        for x in range(diameter):
+            for y in range(diameter):
+                distance = math.dist((x, y), (center, center))
+                if inner_radius <= distance <= outer_radius:
+                    blocks.append((x, y, z, params.wall_material))
+                elif distance <= hub_radius:
+                    blocks.append((x, y, z, HUB_MATERIAL))
+
+        for i in range(num_spokes):
+            angle = 2 * math.pi * i / num_spokes
+            dx, dy = math.cos(angle), math.sin(angle)
+            for dist in range(hub_radius, inner_radius + 1):
+                x = round(center + dist * dx)
+                y = round(center + dist * dy)
+                blocks.append((x, y, z, SPOKE_MATERIAL))
+
+    return blocks, diameter, diameter, thickness
+
+
 GENERATORS = {
     "house": generate_house,
     "tower": generate_tower,
     "temple": generate_temple,
+    "wheel": generate_wheel,
 }
 
 

@@ -34,6 +34,9 @@ ARCHETYPE_KEYWORDS: dict[str, set[str]] = {
         "shack", "lodge", "cottage", "dwelling", "shed", "barn", "inn",
         "tavern", "hostel", "apartment", "flat", "hovel",
     },
+    "wheel": {
+        "wheel", "carousel", "ferris",
+    },
 }
 DEFAULT_ARCHETYPE = "house"
 
@@ -64,7 +67,7 @@ DEFAULT_MATERIAL = "minecraft:stone_bricks"
 # BlueprintValidator can actually place, instead of trusting the model to
 # invent a valid Minecraft block ID.
 VALID_MATERIALS = sorted({DEFAULT_MATERIAL, *MATERIAL_KEYWORDS.values()})
-VALID_ARCHETYPES = ("house", "tower", "temple")
+VALID_ARCHETYPES = ("house", "tower", "temple", "wheel")
 VALID_SCALE_TIERS = ("mini", "medium", "huge")
 VALID_LEAN_DIRECTIONS = ("x", "z")
 # Clamp: a real-world lean beyond this looks absurd and blows up the

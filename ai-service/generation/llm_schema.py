@@ -33,7 +33,10 @@ reconstruction of: "{prompt}"
 
 Return ONLY a single JSON object, no other text, matching exactly this shape:
 {{
-  "archetype": one of {archetypes},
+  "archetype": one of {archetypes} - use "wheel" for anything that is fundamentally \
+a ring/wheel shape (a Ferris wheel, an observation wheel like the London Eye, a \
+carousel) - this is a real, different shape (a ring standing upright), not a resized \
+tower. Do not force a wheel-shaped structure into "tower".
   "scale_tier": one of {scales},
   "material": one of {materials},
   "lean_angle_degrees": a number from 0 to {max_lean} - ONLY nonzero if this specific \
