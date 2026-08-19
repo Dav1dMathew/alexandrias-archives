@@ -24,9 +24,27 @@ export const BlueprintHero: React.FC<{
   opacity?: number;
   tint?: string;
   explode?: number;
-}> = ({ name, rotation, size, opacity = 1, tint = "#e8eef5", explode = 0 }) => {
+  /** 0-1. Reveals the model from the ground up, so it appears to be
+   *  under construction. 1 (default) shows the finished structure. */
+  reveal?: number;
+  /** Colour applied to the courses right at the build line. */
+  edgeTint?: string;
+}> = ({
+  name,
+  rotation,
+  size,
+  opacity = 1,
+  tint = "#e8eef5",
+  explode = 0,
+  reveal = 1,
+  edgeTint = "#ffd166",
+}) => {
   const blueprint = blueprints[name] as Blueprint;
   const { width, height, depth, blocks } = blueprint;
+
+  // Courses at or just under the build line get the accent colour, which
+  // reads as the active layer of construction rather than a hard clip.
+  const buildLine = reveal * height;
 
   const cx = width / 2;
   const cy = height / 2;
@@ -36,7 +54,9 @@ export const BlueprintHero: React.FC<{
   const sin = Math.sin(rotation);
 
   // Project every block, keeping a depth key so we can paint back-to-front.
-  const projected = blocks.map(([bx, by, bz]) => {
+  const projected = blocks
+    .filter(([, by]) => by <= buildLine)
+    .map(([bx, by, bz]) => {
     const ox = bx - cx;
     const oy = by - cy;
     const oz = bz - cz;
@@ -51,18 +71,29 @@ export const BlueprintHero: React.FC<{
     const rx = ex * cos - ez * sin;
     const rz = ex * sin + ez * cos;
 
-    return {
-      sx: (rx - rz) * ISO_COS,
-      sy: (rx + rz) * ISO_SIN - ey,
-      depthKey: rx + rz - ey,
-      // Height and facing drive a simple lambert-ish shade so the model
-      // reads as lit rather than as a flat silhouette.
-      shade: Math.min(
-        1,
-        Math.max(0.18, 0.42 + (oy / Math.max(height, 1)) * 0.75 + (rx / Math.max(width, 1)) * 0.28),
-      ),
-    };
-  });
+      return {
+        sx: (rx - rz) * ISO_COS,
+        sy: (rx + rz) * ISO_SIN - ey,
+        depthKey: rx + rz - ey,
+        // Height and facing drive a simple lambert-ish shade so the model
+        // reads as lit rather than as a flat silhouette. The floor is
+        // deliberately high: an earlier version bottomed out at 0.18,
+        // which made ground-level courses almost invisible - fatal for
+        // the construction reveal, where early frames are *only* ground
+        // courses.
+        shade: Math.min(
+          1,
+          Math.max(
+            0.46,
+            0.66 + (oy / Math.max(height, 1)) * 0.3 + (rx / Math.max(width, 1)) * 0.2,
+          ),
+        ),
+        // Only the single topmost course. A wider band (1.5 courses)
+        // turned the whole cap gold, which read as a yellow-topped
+        // object rather than an active construction line.
+        atBuildLine: reveal < 0.999 && by > buildLine - 0.75,
+      };
+    });
 
   projected.sort((a, b) => a.depthKey - b.depthKey);
 
@@ -85,8 +116,8 @@ export const BlueprintHero: React.FC<{
             y={point.sy - 0.62}
             width={1.24}
             height={1.24}
-            fill={tint}
-            opacity={point.shade}
+            fill={point.atBuildLine ? edgeTint : tint}
+            opacity={point.atBuildLine ? 1 : point.shade}
           />
         ))}
       </g>

@@ -1,0 +1,44 @@
+{
+  "pisa": {
+    "title": "File:The Duomo and Tower of Pisa at sunrise.jpg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/The_Duomo_and_Tower_of_Pisa_at_sunrise.jpg/1920px-The_Duomo_and_Tower_of_Pisa_at_sunrise.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "licence": "CC BY-SA 4.0",
+    "author": "MHoser",
+    "descriptionurl": "https://commons.wikimedia.org/wiki/File:The_Duomo_and_Tower_of_Pisa_at_sunrise.jpg"
+  },
+  "burj": {
+    "title": "File:Burj Khalifa (16260269606).jpg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Burj_Khalifa_%2816260269606%29.jpg/1920px-Burj_Khalifa_%2816260269606%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "licence": "CC BY-SA 2.0",
+    "author": "Laika ac",
+    "descriptionurl": "https://commons.wikimedia.org/wiki/File:Burj_Khalifa_(16260269606).jpg"
+  },
+  "taj": {
+    "title": "File:Taj Mahal, Agra, India edit2.jpg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Taj_Mahal%2C_Agra%2C_India_edit2.jpg/1920px-Taj_Mahal%2C_Agra%2C_India_edit2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "licence": "CC BY-SA 4.0",
+    "author": "Yann; edited by King of Hearts",
+    "descriptionurl": "https://commons.wikimedia.org/wiki/File:Taj_Mahal,_Agra,_India_edit2.jpg"
+  },
+  "blueprint": {
+    "title": "File:PHOTOCOPY OF A 1942 ARCHITECTURAL DRAWING TITLED- \"COMBINATION WARD, WARD-K-H. ELEVATIONS, SECTIONS, AND ROOF FRAMING PLAN.\" OCTOBER 31, 1942 - Madigan Hospital, Standard and HABS WASH,27-TACO,8I-15.tif",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/PHOTOCOPY_OF_A_1942_ARCHITECTURAL_DRAWING_TITLED-_%22COMBINATION_WARD%2C_WARD-K-H._ELEVATIONS%2C_SECTIONS%2C_AND_ROOF_FRAMING_PLAN.%22_OCTOBER_31%2C_1942_-_Madigan_Hospital%2C_Standard_and_HABS_WASH%2C27-TACO%2C8I-15.tif/lossy-page1-1920px-thumbnail.tif.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "licence": "Public domain",
+    "author": "Unknown",
+    "descriptionurl": "https://commons.wikimedia.org/wiki/File:PHOTOCOPY_OF_A_1942_ARCHITECTURAL_DRAWING_TITLED-_%22COMBINATION_WARD,_WARD-K-H._ELEVATIONS,_SECTIONS,_AND_ROOF_FRAMING_PLAN.%22_OCTOBER_31,_1942_-_Madigan_Hospital,_Standard_and_HABS_WASH,27-TACO,8I-15.tif"
+  },
+  "colosseum": {
+    "title": "File:Colosseum in Rome-April 2007-1- copie 2B.jpg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Colosseum_in_Rome-April_2007-1-_copie_2B.jpg/1920px-Colosseum_in_Rome-April_2007-1-_copie_2B.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "licence": "CC BY-SA 2.5",
+    "author": "Diliff",
+    "descriptionurl": "https://commons.wikimedia.org/wiki/File:Colosseum_in_Rome-April_2007-1-_copie_2B.jpg"
+  },
+  "archive": {
+    "title": "File:AM 377 fol. 14v.jpg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/AM_377_fol._14v.jpg/1920px-AM_377_fol._14v.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "licence": "Public domain",
+    "author": "Photograph of a page from a 16th century manuscript, made available online at http://digitalesamlinger.hum.ku.dk/Home/Sa",
+    "descriptionurl": "https://commons.wikimedia.org/wiki/File:AM_377_fol._14v.jpg"
+  }
+}
