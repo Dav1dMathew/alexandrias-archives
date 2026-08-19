@@ -50,3 +50,9 @@ ai-service/*.egg-info/
 .env
 ai-service/.env
 *.env
+
+# remotion video
+
+video/node_modules/
+video/out/
+video/.remotion/

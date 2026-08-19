@@ -1,0 +1,20 @@
+{
+  "name": "alexandrias-archives-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remotion pitch video for Alexandria's Archives",
+  "scripts": {
+    "start": "remotion studio",
+    "build": "remotion render AlexandriasArchives out/alexandrias-archives.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.513",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.513"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "typescript": "5.9.3"
+  }
+}
