@@ -281,39 +281,78 @@ def generate_wheel(params: GenerationParams) -> tuple[list[Block], int, int, int
     return blocks, diameter, diameter, thickness
 
 
+PLATFORM_MATERIAL = "minecraft:smooth_quartz"
+
+# Onion-dome silhouette control: the radius bulges out past the base
+# before tapering to a point, instead of a plain hemisphere shrinking
+# monotonically. BULGE_HEIGHT_FRACTION is how far up (as a fraction of
+# dome height) the widest point sits; BULGE_FACTOR is how much wider
+# than the base radius it gets there.
+BULGE_HEIGHT_FRACTION = 0.3
+BULGE_FACTOR = 1.2
+
+
+def _onion_radius(t: float, base_radius: float) -> float:
+    if t <= BULGE_HEIGHT_FRACTION:
+        # Smooth rise from base_radius to the bulge peak.
+        local_t = t / BULGE_HEIGHT_FRACTION
+        return base_radius * (1 + (BULGE_FACTOR - 1) * math.sin(math.pi / 2 * local_t))
+    # Smooth taper from the bulge peak down to a point at the tip.
+    local_t = (t - BULGE_HEIGHT_FRACTION) / (1 - BULGE_HEIGHT_FRACTION)
+    return base_radius * BULGE_FACTOR * math.cos(math.pi / 2 * local_t)
+
+
 def generate_dome(params: GenerationParams) -> tuple[list[Block], int, int, int]:
-    # A rounded dome, not a tapering cone - the radius follows a
-    # hemisphere profile (r = R*sqrt(1 - t^2)) rather than shrinking
-    # linearly, which is what actually reads as "dome" instead of
-    # "pointy roof." Sits on a short cylindrical drum, the way most real
-    # domed buildings do (Taj Mahal, mosques, capitol buildings).
+    # An onion dome, not a plain hemisphere or a cone - the radius
+    # bulges outward past the base before tapering to a point (see
+    # _onion_radius), which is what actually reads as a real dome
+    # silhouette (mosques, the Taj Mahal, many capitol buildings) rather
+    # than a smooth half-ball. Sits on a drum, which sits on a real
+    # raised square platform - not floating straight off the ground.
     base_radius = _scale(9, params, minimum=5)
     drum_height = max(2, base_radius // 3)
     dome_height = base_radius
     diameter = base_radius * 2 + 1
     center = base_radius
 
+    platform_margin = max(2, base_radius // 3)
+    platform_height = max(1, base_radius // 6)
+    platform_half = base_radius + platform_margin
+
     blocks: list[Block] = []
 
-    for x, z in _circular_outline(center, center, diameter, filled=True):
-        blocks.append((x, 0, z, FLOOR_MATERIAL))
+    # Platform: a real raised square base, wider than the dome/drum
+    # footprint, in a visually distinct material.
+    for x in range(center - platform_half, center + platform_half + 1):
+        for z in range(center - platform_half, center + platform_half + 1):
+            for y in range(platform_height):
+                blocks.append((x, y, z, PLATFORM_MATERIAL))
 
-    for y in range(1, drum_height + 1):
+    for x, z in _circular_outline(center, center, diameter, filled=True):
+        blocks.append((x, platform_height, z, FLOOR_MATERIAL))
+
+    for dy in range(1, drum_height + 1):
+        y = platform_height + dy
         for x, z in _circular_outline(center, center, diameter, filled=False):
             blocks.append((x, y, z, params.wall_material))
 
     for dy in range(0, dome_height + 1):
-        y = drum_height + dy
+        y = platform_height + drum_height + dy
         t = dy / dome_height
-        radius_here = base_radius * math.sqrt(max(0.0, 1 - t * t))
+        radius_here = _onion_radius(t, base_radius)
         if radius_here < 0.5:
             blocks.append((center, y, center, params.wall_material))
             continue
         for x, z in _circular_outline(center, center, round(radius_here * 2), filled=False):
             blocks.append((x, y, z, params.wall_material))
 
+    # Small finial spire at the very tip, common on real onion domes.
+    finial_y = platform_height + drum_height + dome_height + 1
+    for dy in range(3):
+        blocks.append((center, finial_y + dy, center, params.wall_material))
+
     blocks, width, depth = _normalize_xz_bounds(blocks)
-    return blocks, width, drum_height + dome_height + 1, depth
+    return blocks, width, finial_y + 3, depth
 
 
 GENERATORS = {
@@ -350,11 +389,19 @@ def _add_accessories(
     accessory_blocks, aw, _, ad = generate_tower(accessory_params)
     accessory_span = max(aw, ad)
 
-    placement_radius = main_span / 2 + accessory_span / 2 + 2
+    # Slightly past the platform's edge, not hugging the dome - real
+    # corner minarets (the Taj Mahal, many mosques) stand well clear of
+    # the main structure on their own corners of the platform.
+    placement_radius = main_span / 2 * 1.15 + accessory_span / 2 + 2
+
+    # 4 accessories reads as "corner towers" (the common real case) only
+    # if they land on the diagonals, not the cardinal N/E/S/W midpoints -
+    # offset the starting angle by 45 degrees so they do.
+    start_angle = math.pi / 4 if params.accessory_count == 4 else 0.0
 
     combined = list(blocks)
     for i in range(params.accessory_count):
-        angle = 2 * math.pi * i / params.accessory_count
+        angle = start_angle + 2 * math.pi * i / params.accessory_count
         offset_x = round(center_x + placement_radius * math.cos(angle) - aw / 2)
         offset_z = round(center_z + placement_radius * math.sin(angle) - ad / 2)
         for x, y, z, material in accessory_blocks:
