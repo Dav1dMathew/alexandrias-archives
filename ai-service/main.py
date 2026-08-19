@@ -1,5 +1,9 @@
 import asyncio
 
+from dotenv import load_dotenv
+
+load_dotenv()  # loads ai-service/.env (gitignored) - e.g. GROQ_API_KEY
+
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 
