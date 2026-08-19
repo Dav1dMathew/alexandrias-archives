@@ -2,6 +2,7 @@ package net.thinkerthonker.alexandriasarchives.network;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
@@ -18,14 +19,14 @@ public final class PreviewNetworking {
         PayloadTypeRegistry.playS2C().register(PreviewPayload.TYPE, PreviewPayload.CODEC);
     }
 
-    public static void sendPreview(ServerPlayer player, Blueprint blueprint, net.minecraft.core.BlockPos origin, int rotation) {
+    public static void sendPreview(ServerPlayer player, Blueprint blueprint, BlockPos origin, int rotation) {
         BlueprintBlock[] blocks = blueprint.getBlocks().toArray(new BlueprintBlock[0]);
-        net.minecraft.core.BlockPos[] positions = new net.minecraft.core.BlockPos[blocks.length];
+        BlockPos[] positions = new BlockPos[blocks.length];
         String[] ids = new String[blocks.length];
 
         for (int i = 0; i < blocks.length; i++) {
             positions[i] = blocks[i].getPosition();
-            ids[i] = blocks[i].getBlockId();
+            ids[i] = blocks[i].getBlockID();
         }
 
         ServerPlayNetworking.send(player, new PreviewPayload(
