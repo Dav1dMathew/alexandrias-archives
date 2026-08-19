@@ -2,7 +2,7 @@ import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { BlueprintHero, BlueprintName } from "../BlueprintHero";
 import { fontStack } from "../theme";
-import { light } from "../lightTheme";
+import { launch } from "../launchTheme";
 
 // The payoff beat: the structure builds itself from the ground up, big in
 // frame, while slowly turning. Uses the same real geometry as every other
@@ -56,7 +56,7 @@ export const Assembly: React.FC<{
   );
 
   return (
-    <AbsoluteFill style={{ opacity, background: isLight ? light.paper : undefined }}>
+    <AbsoluteFill style={{ opacity, background: isLight ? launch.bg : undefined }}>
       {/* Model sits low so the headline owns the upper third - the Apple
           arrangement, rather than type pinned under the subject. */}
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
@@ -66,8 +66,8 @@ export const Assembly: React.FC<{
             rotation={rotation}
             size={size}
             reveal={reveal}
-            tint={isLight ? light.model : undefined}
-            edgeTint={isLight ? light.orange : undefined}
+            tint={isLight ? launch.model : undefined}
+            edgeTint={isLight ? launch.accent : undefined}
           />
         </div>
       </AbsoluteFill>
@@ -87,7 +87,7 @@ export const Assembly: React.FC<{
               fontSize: 68,
               fontWeight: 600,
               letterSpacing: -1.5,
-              color: isLight ? light.ink : "#f5f8fb",
+              color: isLight ? launch.text : "#f5f8fb",
               textAlign: "center",
               maxWidth: 1400,
               lineHeight: 1.14,

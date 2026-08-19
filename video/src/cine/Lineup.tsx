@@ -2,7 +2,7 @@ import React from "react";
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { BlueprintHero, BlueprintName } from "../BlueprintHero";
 import { fontStack } from "../theme";
-import { light } from "../lightTheme";
+import { launch } from "../launchTheme";
 
 type Entry = { name: BlueprintName; label: string; size: number };
 
@@ -30,7 +30,7 @@ export const Lineup: React.FC<{
   });
 
   return (
-    <AbsoluteFill style={{ opacity, background: light.paper }}>
+    <AbsoluteFill style={{ opacity, background: launch.bg }}>
       {headline && (
         <AbsoluteFill
           style={{
@@ -46,7 +46,7 @@ export const Lineup: React.FC<{
               fontSize: 72,
               fontWeight: 600,
               letterSpacing: -1.7,
-              color: light.ink,
+              color: launch.text,
               textAlign: "center",
               maxWidth: 1500,
               lineHeight: 1.1,
@@ -111,7 +111,7 @@ export const Lineup: React.FC<{
                   // doesn't read as one rigid animation.
                   rotation={(frame / duration) * Math.PI * (0.9 + index * 0.16)}
                   size={entry.size}
-                  tint={light.model}
+                  tint={launch.model}
                 />
               </div>
               <div
@@ -120,7 +120,7 @@ export const Lineup: React.FC<{
                   fontSize: 24,
                   fontWeight: 500,
                   letterSpacing: -0.2,
-                  color: light.inkSoft,
+                  color: launch.textSoft,
                   textAlign: "center",
                   whiteSpace: "nowrap",
                 }}

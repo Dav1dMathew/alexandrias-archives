@@ -223,8 +223,26 @@ def generate_tower(params: GenerationParams) -> tuple[list[Block], int, int, int
         for x, z in _square_outline(cx, cz, top_size, filled=False, step=2):
             blocks.append((x, merlon_y, z, params.wall_material))
 
+    # Spire. A strongly tapering tower (the Burj Khalifa, an obelisk, a
+    # cathedral spire) is defined by rising to a point - without this the
+    # profile just stops on a flat cap partway up, which reads as an
+    # unfinished building rather than a finished one.
+    if params.taper_ratio >= 0.35:
+        spire_height = max(2, round(height * 0.18))
+        offset = _lean_offset(height, params)
+        tip_x = round(center + offset) if lean_x else round(center)
+        tip_z = round(center + offset) if not lean_x else round(center)
+        for dy in range(1, spire_height + 1):
+            blocks.append((tip_x, height + dy, tip_z, params.wall_material))
+
     blocks, width, depth = _normalize_xz_bounds(blocks)
-    return blocks, width, merlon_y + 1, depth
+    # Height from the blocks actually placed, not from merlon_y: merlons
+    # are square-only and the spire is taper-only, so a formula-derived
+    # height over-reported the bounding box (a y_shape tower claimed 29
+    # while topping out at 27), leaving phantom empty courses that made
+    # the structure look permanently unfinished.
+    actual_height = max(b[1] for b in blocks) + 1
+    return blocks, width, actual_height, depth
 
 
 def generate_temple(params: GenerationParams) -> tuple[list[Block], int, int, int]:

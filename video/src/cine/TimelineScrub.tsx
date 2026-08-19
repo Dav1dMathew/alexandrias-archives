@@ -2,7 +2,7 @@ import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { BlueprintHero, BlueprintName } from "../BlueprintHero";
 import { fontStack } from "../theme";
-import { light } from "../lightTheme";
+import { launch } from "../launchTheme";
 
 // The report's "timeline growth across historical periods" feature: the
 // same structure re-rendered at successive points in its construction,
@@ -38,7 +38,7 @@ export const TimelineScrub: React.FC<{
   );
 
   return (
-    <AbsoluteFill style={{ opacity, background: light.paper }}>
+    <AbsoluteFill style={{ opacity, background: launch.bg }}>
       {/* Label and year lead at the top; the model sits below them and the
           track anchors the bottom. Previously all three were stacked at the
           bottom edge, which crowded the frame and buried the year. */}
@@ -57,7 +57,7 @@ export const TimelineScrub: React.FC<{
               fontWeight: 500,
               letterSpacing: 5,
               textTransform: "uppercase",
-              color: light.inkFaint,
+              color: launch.textFaint,
               textAlign: "center",
               marginBottom: 20,
             }}
@@ -70,7 +70,7 @@ export const TimelineScrub: React.FC<{
             fontFamily: fontStack,
             fontSize: 104,
             fontWeight: 600,
-            color: light.orange,
+            color: launch.accent,
             textAlign: "center",
             letterSpacing: -2.6,
             lineHeight: 1,
@@ -88,10 +88,10 @@ export const TimelineScrub: React.FC<{
             rotation={progress * Math.PI * 0.55}
             size={size}
             reveal={reveal}
-            // Dark-on-light here; the default tint is near-white and
-            // would vanish against the paper ground.
-            tint={light.model}
-            edgeTint={light.orange}
+            // Explicit tint so the model stays consistent with the
+            // launch palette rather than the default film-cut white.
+            tint={launch.model}
+            edgeTint={launch.accent}
           />
         </div>
       </AbsoluteFill>
@@ -113,7 +113,7 @@ export const TimelineScrub: React.FC<{
                 left: 0,
                 right: 0,
                 height: 2,
-                background: "rgba(20,17,13,0.14)",
+                background: "rgba(247,242,236,0.16)",
               }}
             />
             <div
@@ -123,7 +123,7 @@ export const TimelineScrub: React.FC<{
                 left: 0,
                 width: `${progress * 100}%`,
                 height: 2,
-                background: light.orange,
+                background: launch.accent,
               }}
             />
             {years.map((year) => {
@@ -144,7 +144,7 @@ export const TimelineScrub: React.FC<{
                     style={{
                       width: 3,
                       height: 18,
-                      background: passed ? light.orange : "rgba(20,17,13,0.18)",
+                      background: passed ? launch.accent : "rgba(247,242,236,0.22)",
                       margin: "0 auto",
                     }}
                   />
@@ -152,7 +152,7 @@ export const TimelineScrub: React.FC<{
                     style={{
                       fontFamily: fontStack,
                       fontSize: 16,
-                      color: passed ? light.orange : light.inkFaint,
+                      color: passed ? launch.accent : launch.textFaint,
                       marginTop: 6,
                     }}
                   >
