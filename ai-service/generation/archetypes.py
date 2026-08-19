@@ -384,7 +384,11 @@ def generate_aircraft(params: GenerationParams) -> tuple[list[Block], int, int, 
     # Concorde-style aircraft actually looks from above.
     length = _scale(24, params, minimum=14)
     fuselage_radius = max(2, length // 10)
-    half_span = max(fuselage_radius + 3, round(length * params.wingspan_ratio / 2))
+    # Minimum bumped from +3 to +7: a realistic narrow wingspan_ratio
+    # (~0.45-0.5, correct for a Concorde) combined with the old minimum
+    # produced only 3-4 blocks of actual wing at medium scale - thin
+    # enough to read as an unrecognizable stub rather than a wing.
+    half_span = max(fuselage_radius + 7, round(length * params.wingspan_ratio / 2))
 
     y_center = fuselage_radius + 3
     z_center = half_span + 2
@@ -425,7 +429,10 @@ def generate_aircraft(params: GenerationParams) -> tuple[list[Block], int, int, 
         for x in range(leading_x, trailing_x + 1):
             for side in (1, -1):
                 z = z_center + side * (fuselage_radius + s)
+                # 2 blocks thick vertically - a single-layer wing was
+                # nearly invisible at typical viewing distance/angle.
                 blocks.append((x, y_center, z, params.wall_material))
+                blocks.append((x, y_center - 1, z, params.wall_material))
 
     # Tail fin: a swept vertical fin, tallest where it meets the
     # fuselage and tapering down toward the tail tip.
