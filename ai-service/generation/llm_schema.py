@@ -55,8 +55,15 @@ carousel) - this is a real, different shape (a ring standing upright), not a res
 tower. Use "dome" for anything whose defining feature is a rounded dome roof (a \
 mosque, a mausoleum like the Taj Mahal, a capitol building, a basilica) - this is a \
 real rounded hemisphere, not a tapering "tower". Use "aircraft" for any airplane/jet \
-(a fuselage with swept wings and engines) - do not force it into "tower". Do not force \
-a domed, wheel-shaped, or aircraft-shaped structure into "tower".
+(a fuselage with swept wings and engines). Use "vehicle" for any ground vehicle - a \
+car, truck, bus, train, tank, chariot - a boxy body on wheels, NOT a building at all. \
+Use "ship" for any boat/vessel - a tapered hull with a mast, NOT a building. Use \
+"bridge" for any bridge/viaduct/aqueduct - a horizontal span between towers, \
+fundamentally different from every other archetype (it's not a standalone vertical \
+structure at all). Do not force a vehicle, ship, bridge, domed, wheel-shaped, or \
+aircraft-shaped subject into "tower" or "house" just because they're the default-\
+feeling choices - if the subject is not a building, it should not get a building \
+archetype.
   "accessory_count": an integer from 0 to {max_accessories} - number of freestanding \
 small towers/minarets around the main structure's perimeter, ONLY if this building is \
 specifically known for them (e.g. the Taj Mahal has exactly 4 corner minarets). 0 for \

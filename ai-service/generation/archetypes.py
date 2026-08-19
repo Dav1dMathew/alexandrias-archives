@@ -465,6 +465,140 @@ def generate_aircraft(params: GenerationParams) -> tuple[list[Block], int, int, 
     return blocks, width, height, depth
 
 
+WHEEL_MATERIAL = "minecraft:black_concrete"
+WINDOW_MATERIAL = "minecraft:light_blue_stained_glass"
+
+
+def generate_vehicle(params: GenerationParams) -> tuple[list[Block], int, int, int]:
+    # A ground vehicle: a boxy body shell (low "hood" up front, taller
+    # cabin from roughly a third of the way back) riding on 4 wheels -
+    # covers the exact gap that sent "bmw x5 2015" to a flat photo
+    # mosaic instead of any real geometry.
+    length = _scale(8, params, minimum=5)
+    width = max(3, round(length * 0.55))
+    wheel_radius = max(1, length // 7)
+    body_height = max(2, length // 3)
+    y0 = wheel_radius  # body rides on top of the wheels
+
+    cabin_start = round(length * 0.28)
+
+    blocks: list[Block] = []
+
+    for x in range(length):
+        tall = x >= cabin_start
+        top_y = y0 + body_height if tall else y0 + max(1, body_height - 2)
+        for z in range(width):
+            edge = x == 0 or x == length - 1 or z == 0 or z == width - 1
+            blocks.append((x, y0, z, params.wall_material))
+            if edge:
+                for y in range(y0 + 1, top_y):
+                    blocks.append((x, y, z, params.wall_material))
+            blocks.append((x, top_y, z, params.wall_material))
+        if tall:
+            window_y = y0 + body_height - 1
+            blocks.append((x, window_y, 0, WINDOW_MATERIAL))
+            blocks.append((x, window_y, width - 1, WINDOW_MATERIAL))
+
+    # 4 wheels, one flat disk per corner (in the side/x-y plane, one
+    # block deep at each side of the body).
+    for x_pos in (wheel_radius, length - 1 - wheel_radius):
+        for z_pos in (0, width - 1):
+            for a, b in _circular_outline(wheel_radius, x_pos, wheel_radius * 2, filled=True):
+                blocks.append((b, a, z_pos, WHEEL_MATERIAL))
+
+    blocks, width, height, depth = _normalize_bounds(blocks)
+    return blocks, width, height, depth
+
+
+DECK_MATERIAL = "minecraft:dark_oak_planks"
+MAST_MATERIAL = "minecraft:oak_log"
+
+
+def generate_ship(params: GenerationParams) -> tuple[list[Block], int, int, int]:
+    # A hull tapering to a point at the bow, full beam from ~30% back to
+    # a flat stern, with a mast and a crossbeam yard - a real ship
+    # silhouette, not a tower lying on its side.
+    length = _scale(20, params, minimum=12)
+    beam = max(4, round(length * 0.28))
+    hull_height = max(2, length // 8)
+    deck_y = hull_height
+    mast_height = max(4, length // 3)
+    center_z = beam // 2
+
+    blocks: list[Block] = []
+
+    for x in range(length):
+        if x < length * 0.3:
+            t = x / max(1.0, length * 0.3)
+            half_width = max(1, round(center_z * t))
+        else:
+            half_width = center_z
+
+        for z in range(center_z - half_width, center_z + half_width + 1):
+            for y in range(hull_height):
+                edge = z in (center_z - half_width, center_z + half_width) or x == 0
+                if edge or y == 0:
+                    blocks.append((x, y, z, params.wall_material))
+            blocks.append((x, deck_y, z, DECK_MATERIAL))
+
+    mast_x = round(length * 0.4)
+    for y in range(deck_y, deck_y + mast_height):
+        blocks.append((mast_x, y, center_z, MAST_MATERIAL))
+
+    yard_y = deck_y + round(mast_height * 0.6)
+    yard_half = min(center_z, 3)
+    for dz in range(-yard_half, yard_half + 1):
+        blocks.append((mast_x, yard_y, center_z + dz, MAST_MATERIAL))
+
+    blocks, width, height, depth = _normalize_bounds(blocks)
+    return blocks, width, height, depth
+
+
+CABLE_MATERIAL = "minecraft:chain"
+
+
+def generate_bridge(params: GenerationParams) -> tuple[list[Block], int, int, int]:
+    # A genuinely different topology from every other archetype: a
+    # horizontal span, not a centered vertical structure. Two towers,
+    # a flat deck between them, and a sagging suspension cable with
+    # vertical hangers down to the deck - the actual defining silhouette
+    # of a suspension bridge (Golden Gate, Brooklyn Bridge, ...).
+    # Capped at 60, not just scaled - "huge" (1.8x) would put a 40-block
+    # base span at 72, over BlueprintValidator's 64-block dimension cap,
+    # which would fail validation outright rather than just looking bad.
+    span = min(60, _scale(40, params, minimum=24))
+    tower_height = max(6, span // 4)
+    deck_y = max(2, tower_height // 2)
+    deck_width = max(3, span // 10)
+    tower_positions = (round(span * 0.15), round(span * 0.85))
+
+    blocks: list[Block] = []
+
+    for x in range(span):
+        for z in range(deck_width):
+            blocks.append((x, deck_y, z, params.wall_material))
+
+    for tx in tower_positions:
+        for z in (0, deck_width - 1):
+            for y in range(tower_height + 1):
+                blocks.append((tx, y, z, params.wall_material))
+        for z in range(deck_width):
+            blocks.append((tx, tower_height, z, params.wall_material))
+
+    half_span = span / 2
+    for z in (0, deck_width - 1):
+        for x in range(span):
+            t = (x - half_span) / half_span
+            cable_y = min(tower_height, deck_y + round((tower_height - deck_y) * (t * t)))
+            blocks.append((x, cable_y, z, CABLE_MATERIAL))
+            if x % 4 == 0:
+                for y in range(deck_y, cable_y):
+                    blocks.append((x, y, z, CABLE_MATERIAL))
+
+    blocks, width, height, depth = _normalize_bounds(blocks)
+    return blocks, width, height, depth
+
+
 GENERATORS = {
     "house": generate_house,
     "tower": generate_tower,
@@ -472,6 +606,9 @@ GENERATORS = {
     "wheel": generate_wheel,
     "dome": generate_dome,
     "aircraft": generate_aircraft,
+    "vehicle": generate_vehicle,
+    "ship": generate_ship,
+    "bridge": generate_bridge,
 }
 
 

@@ -45,6 +45,19 @@ ARCHETYPE_KEYWORDS: dict[str, set[str]] = {
         "aircraft", "plane", "airplane", "jet", "airliner", "airbus",
         "boeing", "concorde", "fighter", "biplane", "seaplane", "glider",
     },
+    "vehicle": {
+        "car", "vehicle", "truck", "van", "suv", "bus", "taxi", "jeep",
+        "limousine", "tank", "locomotive", "train", "carriage", "wagon",
+        "chariot", "buggy",
+    },
+    "ship": {
+        "ship", "boat", "vessel", "yacht", "galleon", "frigate",
+        "battleship", "submarine", "canoe", "sailboat", "schooner",
+        "titanic", "ark", "longship", "steamship", "ferry",
+    },
+    "bridge": {
+        "bridge", "viaduct", "aqueduct", "causeway", "overpass",
+    },
 }
 DEFAULT_ARCHETYPE = "house"
 
@@ -90,7 +103,10 @@ DEFAULT_MATERIAL = "minecraft:stone_bricks"
 # BlueprintValidator can actually place, instead of trusting the model to
 # invent a valid Minecraft block ID.
 VALID_MATERIALS = sorted({DEFAULT_MATERIAL, *MATERIAL_KEYWORDS.values()})
-VALID_ARCHETYPES = ("house", "tower", "temple", "wheel", "dome", "aircraft")
+VALID_ARCHETYPES = (
+    "house", "tower", "temple", "wheel", "dome", "aircraft", "vehicle",
+    "ship", "bridge",
+)
 VALID_SCALE_TIERS = ("mini", "medium", "huge")
 VALID_LEAN_DIRECTIONS = ("x", "z")
 # Clamp: a real-world lean beyond this looks absurd and blows up the
