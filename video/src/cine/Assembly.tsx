@@ -34,17 +34,21 @@ export const Assembly: React.FC<{
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
   );
 
+  // As a headline it should be present for most of the shot, not arrive
+  // at the end the way a trailing subtitle would.
   const captionOpacity = interpolate(
     frame,
-    [duration - 120, duration - 96, duration - 24, duration],
+    [26, 54, duration - 34, duration],
     [0, 1, 1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
   );
 
   return (
     <AbsoluteFill style={{ opacity }}>
+      {/* Model sits low so the headline owns the upper third - the Apple
+          arrangement, rather than type pinned under the subject. */}
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
-        <div style={{ transform: "translateY(-46px)" }}>
+        <div style={{ transform: "translateY(78px)" }}>
           <BlueprintHero
             name={name}
             rotation={rotation}
@@ -58,18 +62,22 @@ export const Assembly: React.FC<{
         <AbsoluteFill
           style={{
             alignItems: "center",
-            justifyContent: "flex-end",
-            paddingBottom: 128,
+            justifyContent: "flex-start",
+            paddingTop: 118,
             opacity: captionOpacity,
           }}
         >
           <div
             style={{
               fontFamily: fontStack,
-              fontSize: 27,
-              fontWeight: 300,
-              letterSpacing: 3.2,
-              color: "#e8eef5",
+              fontSize: 68,
+              fontWeight: 600,
+              letterSpacing: -1.5,
+              color: "#f5f8fb",
+              textAlign: "center",
+              maxWidth: 1400,
+              lineHeight: 1.14,
+              textShadow: "0 6px 60px rgba(0,0,0,0.95)",
             }}
           >
             {caption}

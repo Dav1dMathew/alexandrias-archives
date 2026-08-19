@@ -12,8 +12,13 @@ export const theme = {
   muted: "#8fb3c9",
 } as const;
 
+// San Francisco - Apple's system typeface, present on this machine as
+// SFNS.ttf and reached through -apple-system/system-ui. The previous
+// stack led with "Segoe UI", which is a Windows font: on macOS it never
+// resolved and everything silently fell back to a generic sans, which is
+// a large part of why the type looked generic.
 export const fontStack =
-  '"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+  '-apple-system, system-ui, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, sans-serif';
 
 export const monoStack =
-  '"SF Mono", "Consolas", "Menlo", "Roboto Mono", monospace';
+  'ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace';

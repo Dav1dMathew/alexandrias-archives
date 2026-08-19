@@ -38,8 +38,50 @@ export const TimelineScrub: React.FC<{
 
   return (
     <AbsoluteFill style={{ opacity }}>
+      {/* Label and year lead at the top; the model sits below them and the
+          track anchors the bottom. Previously all three were stacked at the
+          bottom edge, which crowded the frame and buried the year. */}
+      <AbsoluteFill
+        style={{
+          alignItems: "center",
+          justifyContent: "flex-start",
+          paddingTop: 104,
+        }}
+      >
+        {label && (
+          <div
+            style={{
+              fontFamily: fontStack,
+              fontSize: 21,
+              fontWeight: 500,
+              letterSpacing: 5,
+              textTransform: "uppercase",
+              color: "rgba(190,208,226,0.62)",
+              textAlign: "center",
+              marginBottom: 20,
+            }}
+          >
+            {label}
+          </div>
+        )}
+        <div
+          style={{
+            fontFamily: fontStack,
+            fontSize: 104,
+            fontWeight: 600,
+            color: ACCENT,
+            textAlign: "center",
+            letterSpacing: -2.6,
+            lineHeight: 1,
+            textShadow: "0 6px 60px rgba(0,0,0,0.9)",
+          }}
+        >
+          {currentYear}
+        </div>
+      </AbsoluteFill>
+
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
-        <div style={{ transform: "translateY(-58px)" }}>
+        <div style={{ transform: "translateY(84px)" }}>
           <BlueprintHero
             name={name}
             rotation={progress * Math.PI * 0.55}
@@ -49,46 +91,16 @@ export const TimelineScrub: React.FC<{
         </div>
       </AbsoluteFill>
 
-      {/* Year read-out */}
       <AbsoluteFill
         style={{
           alignItems: "center",
           justifyContent: "flex-end",
-          paddingBottom: 150,
+          paddingBottom: 92,
         }}
       >
-        <div style={{ width: 980 }}>
-          {label && (
-            <div
-              style={{
-                fontFamily: fontStack,
-                fontSize: 18,
-                letterSpacing: 5,
-                textTransform: "uppercase",
-                color: "rgba(180,200,220,0.6)",
-                textAlign: "center",
-                marginBottom: 18,
-              }}
-            >
-              {label}
-            </div>
-          )}
-
-          <div
-            style={{
-              fontFamily: monoStack,
-              fontSize: 60,
-              fontWeight: 700,
-              color: ACCENT,
-              textAlign: "center",
-              letterSpacing: 3,
-            }}
-          >
-            {currentYear}
-          </div>
-
+        <div style={{ width: 1080 }}>
           {/* Track with ticks for each named year */}
-          <div style={{ position: "relative", marginTop: 26, height: 34 }}>
+          <div style={{ position: "relative", height: 34 }}>
             <div
               style={{
                 position: "absolute",
