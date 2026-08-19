@@ -6,8 +6,11 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.BossEvent;
 import net.minecraft.world.level.block.Blocks;
 import net.thinkerthonker.alexandriasarchives.builder.BlueprintValidator;
 import net.thinkerthonker.alexandriasarchives.builder.StructureBuilder;
@@ -16,6 +19,8 @@ import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
 import net.thinkerthonker.alexandriasarchives.service.AiServiceClient;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 // Handles /aa build command.
 // "/aa build demo" places a hard-coded structure so the pipeline can be
@@ -72,10 +77,33 @@ public class BuildCommand {
     // The HTTP call runs off the server thread; the response is handled back
     // on the server thread via MinecraftServer#execute, since world edits
     // (and sendSuccess/sendFailure) aren't safe to perform off-thread.
+    //
+    // A boss bar tracks progress through the request's stages (sending ->
+    // waiting on the AI -> validating -> clearing -> placing -> done),
+    // since the whole round trip can take anywhere from ~2s (Groq, a
+    // simple archetype) to ~90s worst case (a chained OSM+LLM fallback) -
+    // a static "Sending..." chat line gives no sense of whether anything
+    // is still happening. The player-facing bar cannot show true
+    // per-block progress during placement (StructureBuilder.placeBlock
+    // is one synchronous call, not tick-batched like BuildJob), so
+    // stages are the honest granularity available, not a smooth percentage.
     private static int executeGenerate(CommandSourceStack source, String prompt) {
         ServerLevel level = source.getLevel();
         MinecraftServer server = source.getServer();
         BlockPos buildOrigin = BlockPos.containing(source.getPosition()).above();
+        ServerPlayer player = source.getPlayer();
+
+        ServerBossEvent bar = null;
+        if (player != null) {
+            bar = new ServerBossEvent(
+                    Component.literal("Alexandria's Archives: contacting AI..."),
+                    BossEvent.BossBarColor.YELLOW,
+                    BossEvent.BossBarOverlay.PROGRESS
+            );
+            bar.setProgress(0.1f);
+            bar.addPlayer(player);
+        }
+        final ServerBossEvent progressBar = bar;
 
         source.sendSuccess(
                 () -> Component.literal("Sending \"" + prompt + "\" to the AI service..."),
@@ -86,22 +114,70 @@ public class BuildCommand {
             if (error != null) {
                 String reason = error.getCause() != null ? error.getCause().getMessage() : error.getMessage();
                 source.sendFailure(Component.literal("Failed to generate structure: " + reason));
+                failBar(progressBar, player, "Failed: " + reason);
                 return;
             }
 
+            updateBar(progressBar, "Validating blueprint...", 0.5f, BossEvent.BossBarColor.YELLOW);
             BlueprintValidator.ValidationResult validation = BlueprintValidator.validate(blueprint);
             if (!validation.valid()) {
                 source.sendFailure(Component.literal("Blueprint Validation Failed: " + validation.message()));
+                failBar(progressBar, player, "Validation failed: " + validation.message());
                 return;
             }
 
+            updateBar(progressBar, "Clearing build area...", 0.7f, BossEvent.BossBarColor.YELLOW);
             clearArea(level, buildOrigin, blueprint);
+
+            updateBar(progressBar, "Placing " + blueprint.getBlockCount() + " blocks...", 0.9f, BossEvent.BossBarColor.YELLOW);
             StructureBuilder.placeBlock(level, buildOrigin, blueprint);
+
             source.sendSuccess(() -> Component.literal("Alexandria's Archives built " + blueprint.getName() +
                     " containing " + blueprint.getBlockCount() + " blocks."), true);
+            completeBar(progressBar, player);
         }));
 
         return 1;
+    }
+
+    // Advances the bar to a new stage - null-safe so callers don't need
+    // their own "if bar != null" guard at every step.
+    private static void updateBar(ServerBossEvent bar, String title, float progress, BossEvent.BossBarColor color) {
+        if (bar == null) {
+            return;
+        }
+        bar.setName(Component.literal("Alexandria's Archives: " + title));
+        bar.setProgress(progress);
+        bar.setColor(color);
+    }
+
+    // Turns the bar red with the failure reason, then removes it shortly
+    // after so the player actually gets to read why before it vanishes.
+    private static void failBar(ServerBossEvent bar, ServerPlayer player, String message) {
+        if (bar == null) {
+            return;
+        }
+        bar.setName(Component.literal("Alexandria's Archives: " + message));
+        bar.setColor(BossEvent.BossBarColor.RED);
+        bar.setProgress(1.0f);
+        scheduleRemoval(bar, player, 3000);
+    }
+
+    // Shows a brief green "complete" state before removing the bar,
+    // rather than having it disappear the instant placement finishes.
+    private static void completeBar(ServerBossEvent bar, ServerPlayer player) {
+        if (bar == null) {
+            return;
+        }
+        bar.setName(Component.literal("Alexandria's Archives: Build complete!"));
+        bar.setColor(BossEvent.BossBarColor.GREEN);
+        bar.setProgress(1.0f);
+        scheduleRemoval(bar, player, 1500);
+    }
+
+    private static void scheduleRemoval(ServerBossEvent bar, ServerPlayer player, long delayMillis) {
+        CompletableFuture.runAsync(() -> {}, CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS))
+                .thenRun(() -> player.getServer().execute(() -> bar.removePlayer(player)));
     }
 
     // Clears a volume around the build origin before placing, sized to the
