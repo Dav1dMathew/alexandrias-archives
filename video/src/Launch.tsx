@@ -287,6 +287,15 @@ const Introducing: React.FC<{ duration: number; tagline?: string }> = ({
   return (
     <AbsoluteFill style={{ opacity: out }}>
       <AbsoluteFill style={{ background: `rgba(255,255,255,${flash})` }} />
+      {/* Scrim: the particle plate behind this is bright in the centre,
+          which was washing out the tagline. Darkens just the type area
+          without flattening the embers around it. */}
+      <AbsoluteFill
+        style={{
+          background:
+            "radial-gradient(ellipse 46% 30% at 50% 50%, rgba(6,4,3,0.62) 0%, transparent 72%)",
+        }}
+      />
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center" }}>
           {/* Eyebrow slot: "Introducing" hands over to the positioning
@@ -337,7 +346,10 @@ const Introducing: React.FC<{ duration: number; tagline?: string }> = ({
               fontSize: 34,
               fontWeight: 500,
               letterSpacing: -0.4,
-              color: launch.textSoft,
+              // Brighter than textSoft: this line sits over the particle
+              // plate's brightest area, where the muted tone disappeared.
+              color: "#e6ddd2",
+              textShadow: "0 3px 26px rgba(0,0,0,0.9)",
               marginTop: 30,
               opacity: swap,
               transform: `translateY(${interpolate(swap, [0, 1], [14, 0])}px)`,
@@ -400,27 +412,46 @@ export const Launch: React.FC = () => (
         Tighter than before: the name lands, then the eyebrow hands over
         to the positioning line in place, all inside 2 bars. */}
     <Sequence from={bar(0)} durationInFrames={bar(2) - bar(0)}>
+      {/* Particle plate sits behind the wordmark. Graded light so the
+          embers stay visible - the type is composited over it rather
+          than generated into it, which keeps the name razor sharp. */}
+      <FootagePlate
+        src="reveal.mp4"
+        duration={bar(2) - bar(0)}
+        grade={0.4}
+        startAtSeconds={1.5}
+      />
       <Introducing duration={bar(2) - bar(0)} />
     </Sequence>
 
     {/* ==================== ACT 3 - FEATURES, ON BARS ==================== */}
 
-    {/* 2 bars - real footage: she puts the headset on */}
-    <Sequence from={bar(2)} durationInFrames={bar(5) - bar(2)}>
+    {/* 2 bars - she puts the headset on */}
+    <Sequence from={bar(2)} durationInFrames={bar(4) - bar(2)}>
       <FootagePlate
         src="vr.mp4"
-        duration={bar(5) - bar(2)}
+        duration={bar(4) - bar(2)}
         headline="Then step inside it."
         headlineY={0.7}
         startAtSeconds={0}
       />
     </Sequence>
 
-    {/* 5 bars - cut to what she's looking at. The live plate sells the
-        moment; this sells what's actually in the headset. */}
-    <Sequence from={bar(5)} durationInFrames={bar(7) - bar(5)}>
+    {/* 4 bars - standing in the space, reacting to something enormous.
+        The virtual content is deliberately never shown here; the next
+        shot is what she's looking at. */}
+    <Sequence from={bar(4)} durationInFrames={bar(6) - bar(4)}>
+      <FootagePlate
+        src="tajmahal.mp4"
+        duration={bar(6) - bar(4)}
+        startAtSeconds={1}
+      />
+    </Sequence>
+
+    {/* 6 bars - cut to what's actually in the headset */}
+    <Sequence from={bar(6)} durationInFrames={bar(7) - bar(6)}>
       <Immersive
-        duration={bar(7) - bar(5)}
+        duration={bar(7) - bar(6)}
         name="dome"
         caption="VR — on the roadmap"
       />
