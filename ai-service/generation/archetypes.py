@@ -63,9 +63,25 @@ def generate_house(params: GenerationParams) -> tuple[list[Block], int, int, int
     return blocks, width, roof_y + 1, depth
 
 
+def _lean_offset(y: int, params: GenerationParams) -> int:
+    # Each layer is a rigid size x size ring, stacked with a growing lateral
+    # shift as height increases - the same mechanism that actually produces
+    # a leaning tower (uneven-foundation settling shifts each successive
+    # floor), not a distortion of the ring's shape.
+    if params.lean_angle_degrees <= 0:
+        return 0
+    return round(y * math.tan(math.radians(params.lean_angle_degrees)))
+
+
 def generate_tower(params: GenerationParams) -> tuple[list[Block], int, int, int]:
     size = _scale(5, params, minimum=3)
     height = _scale(15, params, minimum=6)
+    merlon_y = height + 1
+    lean_x = params.lean_direction == "x"
+
+    max_offset = _lean_offset(merlon_y, params)
+    width = size + max_offset if lean_x else size
+    depth = size + max_offset if not lean_x else size
 
     blocks: list[Block] = []
 
@@ -73,23 +89,23 @@ def generate_tower(params: GenerationParams) -> tuple[list[Block], int, int, int
         for z in range(size):
             blocks.append((x, 0, z, FLOOR_MATERIAL))
 
+    def ring(y: int, material: str, step: int = 1) -> None:
+        offset = _lean_offset(y, params)
+        dx, dz = (offset, 0) if lean_x else (0, offset)
+        for x in range(0, size, step):
+            blocks.append((x + dx, y, 0 + dz, material))
+            blocks.append((x + dx, y, size - 1 + dz, material))
+        for z in range(step, size - 1, step):
+            blocks.append((0 + dx, y, z + dz, material))
+            blocks.append((size - 1 + dx, y, z + dz, material))
+
     for y in range(1, height + 1):
-        for x in range(size):
-            blocks.append((x, y, 0, params.wall_material))
-            blocks.append((x, y, size - 1, params.wall_material))
-        for z in range(1, size - 1):
-            blocks.append((0, y, z, params.wall_material))
-            blocks.append((size - 1, y, z, params.wall_material))
+        ring(y, params.wall_material)
 
-    merlon_y = height + 1
-    for x in range(0, size, 2):
-        blocks.append((x, merlon_y, 0, params.wall_material))
-        blocks.append((x, merlon_y, size - 1, params.wall_material))
-    for z in range(0, size, 2):
-        blocks.append((0, merlon_y, z, params.wall_material))
-        blocks.append((size - 1, merlon_y, z, params.wall_material))
+    # Merlons: every other position, top ring only.
+    ring(merlon_y, params.wall_material, step=2)
 
-    return blocks, size, merlon_y + 1, size
+    return blocks, width, merlon_y + 1, depth
 
 
 def generate_temple(params: GenerationParams) -> tuple[list[Block], int, int, int]:

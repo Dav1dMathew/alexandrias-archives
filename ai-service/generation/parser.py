@@ -66,6 +66,10 @@ DEFAULT_MATERIAL = "minecraft:stone_bricks"
 VALID_MATERIALS = sorted({DEFAULT_MATERIAL, *MATERIAL_KEYWORDS.values()})
 VALID_ARCHETYPES = ("house", "tower", "temple")
 VALID_SCALE_TIERS = ("mini", "medium", "huge")
+VALID_LEAN_DIRECTIONS = ("x", "z")
+# Clamp: a real-world lean beyond this looks absurd and blows up the
+# bounding box (offset grows with height * tan(angle)).
+MAX_LEAN_DEGREES = 15.0
 
 
 @dataclass
@@ -78,6 +82,12 @@ class GenerationParams:
     # means "keyword-matched, no per-attribute provenance available."
     reasoning: str | None = None
     attributes: list[dict] | None = None
+    # Real geometric parameters, not just archetype selection - e.g. the
+    # Leaning Tower of Pisa's actual lean, not a generic tower. Only
+    # meaningful for the "tower" archetype today; 0.0/"x" is a no-op lean
+    # for everything else.
+    lean_angle_degrees: float = 0.0
+    lean_direction: str = "x"
 
 
 def _tokenize(prompt: str) -> set[str]:

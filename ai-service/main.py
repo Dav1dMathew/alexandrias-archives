@@ -107,11 +107,15 @@ async def generate(request: GenerateRequest):
     if llm_params is None:
         params = keyword_params
     elif keyword_matched:
-        # Keyword parser found a confident match - trust its geometry,
-        # keep the LLM's honest reasoning/provenance on top of it.
+        # Keyword parser found a confident match - trust its base shape,
+        # but keep the LLM's honest reasoning/provenance AND any real
+        # geometric parameters it found (e.g. an actual lean angle) - the
+        # keyword parser has no concept of those at all.
         params = keyword_params
         params.reasoning = llm_params.reasoning
         params.attributes = llm_params.attributes
+        params.lean_angle_degrees = llm_params.lean_angle_degrees
+        params.lean_direction = llm_params.lean_direction
     else:
         params = llm_params
 

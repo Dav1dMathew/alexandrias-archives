@@ -23,6 +23,8 @@ from .parser import (
     VALID_ARCHETYPES,
     VALID_SCALE_TIERS,
     VALID_MATERIALS,
+    VALID_LEAN_DIRECTIONS,
+    MAX_LEAN_DEGREES,
     DEFAULT_ARCHETYPE,
     DEFAULT_SCALE,
     DEFAULT_MATERIAL,
@@ -44,7 +46,12 @@ Return ONLY a single JSON object, no other text, matching exactly this shape:
   "archetype": one of {archetypes},
   "scale_tier": one of {scales},
   "material": one of {materials},
-  "reasoning": "one sentence explaining the archetype/scale choice",
+  "lean_angle_degrees": a number from 0 to {max_lean} - ONLY nonzero if this specific \
+building is actually known to lean or tilt (e.g. the Leaning Tower of Pisa). 0 for \
+every other building, even towers, even if you are not sure.
+  "lean_direction": one of {lean_directions} - the axis it leans toward, irrelevant if \
+lean_angle_degrees is 0,
+  "reasoning": "one sentence explaining the archetype/scale/lean choice",
   "attributes": [
     {{"field": "<short field name>", "value": "<short value>", "provenance": one of {provenance}}}
   ]
@@ -58,8 +65,9 @@ Rules for "attributes": list 2-4 real facts about the subject if you have any \
 - "ai_generated": invented purely to fill in a gap, not based on real information
 - "unknown": you don't actually know this and are not guessing
 
-If the prompt does not name a real building, use "unknown" for every attribute. \
-Do not mark anything "documented" unless you are genuinely confident it's correct."""
+If the prompt does not name a real building, use "unknown" for every attribute and \
+lean_angle_degrees of 0. Do not mark anything "documented" unless you are genuinely \
+confident it's correct. Do not invent a lean that doesn't really exist."""
 
 
 def parse_prompt_llm(prompt: str) -> GenerationParams | None:
@@ -69,6 +77,8 @@ def parse_prompt_llm(prompt: str) -> GenerationParams | None:
         scales=list(VALID_SCALE_TIERS),
         materials=list(VALID_MATERIALS),
         provenance=list(VALID_PROVENANCE),
+        max_lean=MAX_LEAN_DEGREES,
+        lean_directions=list(VALID_LEAN_DIRECTIONS),
     )
 
     payload = json.dumps({
@@ -117,6 +127,10 @@ def _to_generation_params(parsed: dict, prompt: str) -> GenerationParams | None:
     raw_attributes = parsed.get("attributes")
     attributes = _sanitize_attributes(raw_attributes)
 
+    lean_angle, lean_direction = _sanitize_lean(
+        parsed.get("lean_angle_degrees"), parsed.get("lean_direction"), archetype,
+    )
+
     return GenerationParams(
         archetype=archetype,
         scale_tier=scale_tier,
@@ -124,7 +138,28 @@ def _to_generation_params(parsed: dict, prompt: str) -> GenerationParams | None:
         prompt=prompt,
         reasoning=reasoning,
         attributes=attributes,
+        lean_angle_degrees=lean_angle,
+        lean_direction=lean_direction,
     )
+
+
+def _sanitize_lean(raw_angle, raw_direction, archetype: str) -> tuple[float, str]:
+    # Lean only means anything for towers - silently drop it otherwise
+    # rather than trust a model that filled the field in regardless.
+    if archetype != "tower":
+        return 0.0, "x"
+
+    try:
+        angle = float(raw_angle)
+    except (TypeError, ValueError):
+        return 0.0, "x"
+
+    if angle <= 0:
+        return 0.0, "x"
+
+    angle = min(angle, MAX_LEAN_DEGREES)
+    direction = raw_direction if raw_direction in VALID_LEAN_DIRECTIONS else "x"
+    return angle, direction
 
 
 def _sanitize_attributes(raw_attributes) -> list[dict] | None:
