@@ -15,13 +15,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-// Talks to the Python AI service's POST /generate endpoint over HTTP.
+// Talks to the Spring Boot backend's POST /generate endpoint over HTTP.
 // Requests run off the server thread; callers must hop back onto the
 // server thread (via MinecraftServer#execute) before touching world state
 // with the result.
 public final class AiServiceClient {
 
-    private static final String DEFAULT_BASE_URL = "http://localhost:8000";
+    private static final String DEFAULT_BASE_URL = "http://localhost:8080";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     // /generate can chain up to 3 network calls server-side before
     // replying: an OSM geocode lookup (up to 15s), an OSM footprint

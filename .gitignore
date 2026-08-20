@@ -42,7 +42,7 @@ replay_*.log
 # python
 
 ai-service/.venv/
-ai-service/__pycache__/
+**/__pycache__/
 ai-service/*.egg-info/
 
 # secrets
