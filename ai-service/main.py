@@ -1,11 +1,18 @@
 import asyncio
+from typing import Literal
 
 from dotenv import load_dotenv
 
 load_dotenv()  # loads ai-service/.env (gitignored) - e.g. GROQ_API_KEY
 
 from fastapi import FastAPI, UploadFile, File
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+BLUEPRINT_SCHEMA_VERSION = 1
+MAX_BLUEPRINT_DIMENSION = 64
+MAX_BLUEPRINT_BLOCKS = 50_000
+MINECRAFT_BLOCK_ID_PATTERN = r"^[a-z0-9_.-]+:[a-z0-9_./-]+$"
 
 from generation import parse_prompt, parse_prompt_llm, generate_blueprint
 from generation.parser import match_archetype
@@ -19,31 +26,58 @@ app = FastAPI(title="Alexandria's Archives - AI Service")
 
 
 class BlueprintBlock(BaseModel):
-    x: int
-    y: int
-    z: int
-    blockId: str
+    model_config = ConfigDict(extra="forbid")
+
+    x: int = Field(ge=0, lt=MAX_BLUEPRINT_DIMENSION)
+    y: int = Field(ge=0, lt=MAX_BLUEPRINT_DIMENSION)
+    z: int = Field(ge=0, lt=MAX_BLUEPRINT_DIMENSION)
+    blockId: str = Field(pattern=MINECRAFT_BLOCK_ID_PATTERN)
 
 
 class BlueprintAttribute(BaseModel):
-    field: str
-    value: str
-    provenance: str
+    model_config = ConfigDict(extra="forbid")
+
+    field: str = Field(min_length=1, max_length=128, pattern=r"\S")
+    value: str = Field(min_length=1, max_length=1_000, pattern=r"\S")
+    provenance: Literal["documented", "inferred", "ai_generated", "unknown"]
 
 
 class Blueprint(BaseModel):
-    id: str
-    name: str
-    width: int
-    height: int
-    depth: int
-    blocks: list[BlueprintBlock]
-    reasoning: str | None = None
-    attributes: list[BlueprintAttribute] | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    schemaVersion: Literal[1]
+    id: str = Field(min_length=1, max_length=128, pattern=r"\S")
+    name: str = Field(min_length=1, max_length=256, pattern=r"\S")
+    width: int = Field(ge=1, le=MAX_BLUEPRINT_DIMENSION)
+    height: int = Field(ge=1, le=MAX_BLUEPRINT_DIMENSION)
+    depth: int = Field(ge=1, le=MAX_BLUEPRINT_DIMENSION)
+    blocks: list[BlueprintBlock] = Field(max_length=MAX_BLUEPRINT_BLOCKS)
+    reasoning: str | None = Field(default=None, max_length=10_000)
+    attributes: list[BlueprintAttribute] | None = Field(default=None, max_length=256)
+
+    @model_validator(mode="after")
+    def validate_block_positions(self) -> "Blueprint":
+        occupied_positions: set[tuple[int, int, int]] = set()
+
+        for block in self.blocks:
+            if block.x >= self.width or block.y >= self.height or block.z >= self.depth:
+                raise ValueError(
+                    f"Block position ({block.x}, {block.y}, {block.z}) is outside "
+                    "the declared Blueprint dimensions."
+                )
+
+            position = (block.x, block.y, block.z)
+            if position in occupied_positions:
+                raise ValueError(f"Duplicate block position: {position}.")
+            occupied_positions.add(position)
+
+        return self
 
 
 class GenerateRequest(BaseModel):
-    prompt: str
+    model_config = ConfigDict(extra="forbid")
+
+    prompt: str = Field(min_length=1, max_length=1_000, pattern=r"\S")
 
 
 def build_mock_blueprint() -> Blueprint:
@@ -69,6 +103,7 @@ def build_mock_blueprint() -> Blueprint:
             blocks.append(BlueprintBlock(x=x, y=4, z=z, blockId="minecraft:oak_planks"))
 
     return Blueprint(
+        schemaVersion=BLUEPRINT_SCHEMA_VERSION,
         id="mock_building_001",
         name="Mock Analyzed Structure",
         width=7,
@@ -123,6 +158,7 @@ async def generate(request: GenerateRequest):
             blocks, width, height, depth = mosaic
             display_name = request.prompt.strip()
             return {
+                "schemaVersion": BLUEPRINT_SCHEMA_VERSION,
                 "id": _slugify(display_name),
                 "name": display_name,
                 "width": width,
@@ -169,6 +205,7 @@ async def generate(request: GenerateRequest):
         if blocks:
             display_name = request.prompt.strip() or osm_building["name"]
             return {
+                "schemaVersion": BLUEPRINT_SCHEMA_VERSION,
                 "id": _slugify(display_name),
                 "name": display_name,
                 "width": width,
@@ -233,4 +270,6 @@ async def generate(request: GenerateRequest):
     else:
         params = llm_params
 
-    return generate_blueprint(params)
+    blueprint = generate_blueprint(params)
+    blueprint["schemaVersion"] = BLUEPRINT_SCHEMA_VERSION
+    return blueprint

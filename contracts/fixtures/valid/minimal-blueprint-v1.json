@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "fixture_platform_001",
+  "name": "Contract Fixture Platform",
+  "width": 2,
+  "height": 2,
+  "depth": 2,
+  "blocks": [
+    {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "blockId": "minecraft:stone"
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "z": 0,
+      "blockId": "minecraft:stone"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 1,
+      "blockId": "minecraft:oak_planks"
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 1,
+      "blockId": "minecraft:glass"
+    }
+  ]
+}

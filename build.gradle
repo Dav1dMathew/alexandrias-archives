@@ -28,6 +28,23 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Blueprint JSON is the shared wire format used by the backend and AI service.
+	implementation "com.google.code.gson:gson:2.11.0"
+
+	testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.11.4"
+}
+
+sourceSets {
+	test {
+		// Use the repository-level fixture instead of maintaining a Java-only copy.
+		resources.srcDir "contracts/fixtures"
+	}
+}
+
+tasks.named("test") {
+	useJUnitPlatform()
 }
 
 processResources {

@@ -47,6 +47,11 @@ Three services speak a shared JSON **Blueprint** contract:
 
 The mod then validates the blueprint (`BlueprintValidator`) against sane size/block-count limits, and places it into the world in rate-limited batches (`BuildJob`) so large AI-generated builds don't freeze the server.
 
+Blueprint v1 is defined by [`contracts/blueprint.schema.json`](contracts/blueprint.schema.json).
+The schema, compatibility rules, and shared fixture are the source of truth for
+all service implementations. Every response includes a `schemaVersion`, flat
+`x`, `y`, `z`, and `blockId` fields, plus optional reasoning and provenance.
+
 ### Reconstruction tiers
 
 The AI service builds up reconstruction fidelity in tiers rather than attempting full photo-to-3D reconstruction in one leap:
@@ -67,6 +72,8 @@ alexandrias-archives/
 │   ├── main.py           # GET /health, POST /generate (Tier 0), POST /analyze (Tier 1 stub)
 │   ├── generation/        # prompt parsing + procedural blueprint generators
 │   └── requirements.txt
+├── backend/             # Spring Boot orchestration and FastAPI relay service
+├── contracts/           # Blueprint v1 schema, compatibility rules, and fixtures
 └── docs/
     └── architecture-diagram.svg
 ```
@@ -81,7 +88,9 @@ See the [Fabric documentation](https://docs.fabricmc.net/develop/getting-started
 ./gradlew runClient
 ```
 
-Once in a world, `/aa build demo` places a small hardcoded structure so you can confirm the pipeline works end-to-end.
+Once in a world, `/aa build demo` opens a preview of a small hardcoded structure
+without requiring the other services. With the backend and AI service running,
+use `/aa build <prompt>`, adjust the synchronized preview, then confirm or cancel it.
 
 ### AI service
 
@@ -105,11 +114,18 @@ Start the AI service first, then run:
 The backend listens on `http://localhost:8080`. `POST /generate` accepts the
 same JSON request as the AI service and proxies its Blueprint response. Set
 `AI_SERVICE_BASE_URL` to use an AI service anywhere other than
-`http://localhost:8000`.
+`http://localhost:8000`. The backend binds to `127.0.0.1` by default; use
+`SERVER_ADDRESS`, `SERVER_PORT`, `AI_SERVICE_CONNECT_TIMEOUT`, and
+`AI_SERVICE_READ_TIMEOUT` only for trusted development environments.
 
 ## Status
 
-This is an early-stage, in-progress project. The mod can validate and place a hardcoded demo structure. The AI service's Tier 0 prompt-to-blueprint generation is real and working (`/generate`), producing distinct houses, towers, and temples from free-text prompts — but the mod and the AI/backend services aren't wired together yet, `/analyze` (photo input) is still a mock, and the real photogrammetry-based reconstruction doesn't exist. See the project's weekly goals for the current roadmap.
+This is an early-stage, in-progress project. `/aa build <prompt>` connects the
+Fabric mod, Spring Boot backend, and FastAPI service through the versioned
+Blueprint contract, then provides a synchronized movable preview before
+tick-batched placement. Prompt generation supports procedural archetypes, LLM
+parsing, real-photo mosaics, and OpenStreetMap footprints. `/analyze` remains a
+mock while the real photo-to-3D reconstruction pipeline is still planned.
 
 ## Team
 

@@ -10,9 +10,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
 // Talks to the Spring Boot backend's POST /generate endpoint over HTTP.
@@ -22,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 public final class AiServiceClient {
 
     private static final String DEFAULT_BASE_URL = "http://localhost:8080";
+    private static final int SUPPORTED_SCHEMA_VERSION = 1;
+    private static final int MAX_RESPONSE_BYTES = 20 * 1024 * 1024;
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     // /generate can chain up to 3 network calls server-side before
     // replying: an OSM geocode lookup (up to 15s), an OSM footprint
@@ -75,6 +79,17 @@ public final class AiServiceClient {
             throw new AiServiceException(
                     "AI service returned HTTP " + response.statusCode() + ": " + response.body());
         }
+        String contentType = response.headers().firstValue("Content-Type")
+                .orElse("").toLowerCase(Locale.ROOT);
+        if (!contentType.startsWith("application/json")) {
+            throw new AiServiceException("AI service returned a non-JSON response.");
+        }
+        if (response.body() == null || response.body().isBlank()) {
+            throw new AiServiceException("AI service returned an empty response.");
+        }
+        if (response.body().getBytes(StandardCharsets.UTF_8).length > MAX_RESPONSE_BYTES) {
+            throw new AiServiceException("AI service response exceeded the size limit.");
+        }
 
         BlueprintDto dto;
         try {
@@ -83,7 +98,10 @@ public final class AiServiceClient {
             throw new AiServiceException("AI service returned malformed JSON: " + exception.getMessage());
         }
 
-        if (dto == null || dto.blocks == null) {
+        if (dto == null || dto.schemaVersion != SUPPORTED_SCHEMA_VERSION) {
+            throw new AiServiceException("AI service returned an unsupported Blueprint schema.");
+        }
+        if (dto.blocks == null) {
             throw new AiServiceException("AI service response was missing required fields.");
         }
 
@@ -100,6 +118,7 @@ public final class AiServiceClient {
 
     // Mirrors the AI service's JSON Blueprint contract for Gson deserialization.
     private static final class BlueprintDto {
+        int schemaVersion;
         String id;
         String name;
         int width;

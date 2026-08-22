@@ -16,10 +16,20 @@ repositories { mavenCentral() }
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+
     // Keep the application's compiled classes explicit on the test classpath.
     // This is required by the repository's Gradle 9 wrapper with Boot 3.x.
     testImplementation files(sourceSets.main.output)
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.named('test') { useJUnitPlatform() }
+sourceSets {
+    test {
+        resources.srcDir '../contracts/fixtures'
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

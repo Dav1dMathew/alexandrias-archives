@@ -25,7 +25,6 @@ import java.util.List;
 // POST /generate endpoint (Tier 0: keyword-parsed procedural generation)
 // and builds whatever Blueprint comes back.
 public class BuildCommand {
-
     private static final AiServiceClient AI_SERVICE_CLIENT = new AiServiceClient();
 
     private BuildCommand() {
@@ -265,6 +264,10 @@ public class BuildCommand {
         );
 
         // Windows.
+        blocks.removeIf(block -> block.getPosition().getX() == 0
+                && block.getPosition().getY() == 2
+                && block.getPosition().getZ() == 3
+        );
         blocks.add(new BlueprintBlock(new BlockPos(0, 2, 3), "minecraft:glass"));
         return new Blueprint("week1_demo", "Alexandria's Archives Demo Structure",
                 7, 5, 7, blocks);

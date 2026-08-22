@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blueprint.schema.json",
+  "title": "Alexandria's Archives Blueprint v1",
+  "description": "The versioned wire format shared by the Fabric mod, backend, and AI service.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "width",
+    "height",
+    "depth",
+    "blocks"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Wire-contract version. Breaking changes require a new version."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "\\S"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "\\S"
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "depth": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "blocks": {
+      "type": "array",
+      "maxItems": 50000,
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "reasoning": {
+      "type": ["string", "null"],
+      "maxLength": 10000,
+      "description": "Human-readable explanation of how the structure was derived."
+    },
+    "attributes": {
+      "type": ["array", "null"],
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/attribute"
+      }
+    }
+  },
+  "$defs": {
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z", "blockId"],
+      "properties": {
+        "x": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 63
+        },
+        "y": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 63
+        },
+        "z": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 63
+        },
+        "blockId": {
+          "type": "string",
+          "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+          "description": "A namespaced Minecraft block identifier, for example minecraft:stone."
+        }
+      }
+    },
+    "attribute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "value", "provenance"],
+      "properties": {
+        "field": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "\\S"
+        },
+        "provenance": {
+          "type": "string",
+          "enum": ["documented", "inferred", "ai_generated", "unknown"]
+        }
+      }
+    }
+  }
+}

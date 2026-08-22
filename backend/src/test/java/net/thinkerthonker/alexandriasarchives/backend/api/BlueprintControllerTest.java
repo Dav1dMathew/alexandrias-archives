@@ -33,7 +33,7 @@ class BlueprintControllerTest {
 
     @Test void returnsBlueprintFromAiService() throws Exception {
         when(aiServiceClient.generate(any())).thenReturn(objectMapper.readTree("""
-                {"id":"tower","name":"Tower","width":1,"height":1,"depth":1,
+                {"schemaVersion":1,"id":"tower","name":"Tower","width":1,"height":1,"depth":1,
                  "blocks":[{"x":0,"y":0,"z":0,"blockId":"minecraft:stone"}],
                  "reasoning":"documented"}
                 """));
