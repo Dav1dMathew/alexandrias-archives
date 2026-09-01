@@ -15,6 +15,7 @@ import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
 import net.thinkerthonker.alexandriasarchives.network.PreviewNetworking;
 import net.thinkerthonker.alexandriasarchives.service.AiServiceClient;
+import net.thinkerthonker.alexandriasarchives.service.LandmarkRegistry;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -207,6 +208,27 @@ public class BuildCommand {
         PreviewNetworking.sendStop(player);
         source.sendSuccess(() -> Component.literal("Requesting Build Cancellation..."), false);
         return 1;
+    }
+
+    private static int executeGenerate(CommandSourceStack source, String prompt) {
+        Blueprint landmarkBlueprint = LandmarkRegistry.generate(prompt);
+        if(landmarkBlueprint != null) {
+            BlueprintValidator.ValidationResult validation = BlueprintValidator.validate(landmarkBlueprint);
+            if(!validation.valid()) {
+                source.sendFailure(Component.literal("Validation Failed for Blueprint landmark: " + validation.message()));
+                return 0;
+            }
+            BlockPos buildOrigin = player.blockPosition().relative(player.getDirection(), 8);
+            boolean started = BuildManager.startPreview(player, landmarkBlueprint, buildOrigin);
+            if(!started) {
+                source.sendFailure(Component.literal("Preview could not be loaded."));
+                return 0;
+            }
+            PreviewNetworking.sendPreview(player, landmarkBlueprint, buildOrigin, 0);
+            source.sendSuccess(() -> Component.literal("Alexandria's Archives: " + landmarkBlueprint.getName() + " preview ready!"), true);
+            source.sendSuccess(() -> Component.literal("Use '/aa build confirm' to generate structure."), false);
+            return 1;
+        }
     }
 
     // Player uses "Undo" command on previous completed build.
