@@ -34,6 +34,10 @@ public class PreviewSession {
         this.origin = Objects.requireNonNull(origin, "origin");
     }
 
+    public void move(int x, int y, int z) {
+        origin = origin.offset(x, y, z);
+    }
+
     public void setRotation(int rotation) {
         this.rotation = Math.floorMod(rotation, ROTATION_COUNT);
     }
