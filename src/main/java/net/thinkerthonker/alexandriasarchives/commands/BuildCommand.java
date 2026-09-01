@@ -199,6 +199,13 @@ public class BuildCommand {
             return 1;
         }
 
+        // if(BuildManager.cancelBuild(player)) {
+        //     source.sendSuccess(() -> Component.literal("Alexandria's Archives: Build Cancellation Requested..."), false);
+        //     return 1;
+        // }
+        // source.sendFailure(Component.literal("You currently do not have an active preview or build."));
+        // return 0;
+
         boolean cancelled = BuildManager.cancelBuild(player);
         if(!cancelled) {
             source.sendFailure(Component.literal("You don't have an active build or preview."));
