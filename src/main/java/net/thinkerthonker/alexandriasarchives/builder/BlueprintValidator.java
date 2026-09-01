@@ -3,6 +3,7 @@ package net.thinkerthonker.alexandriasarchives.builder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Block;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
 import java.util.HashSet;
@@ -21,13 +22,13 @@ import java.util.Set;
 
 public final class BlueprintValidator {
     // Maximum dimensions permissible
-    public static final int MAX_WIDTH = 64;
-    public static final int MAX_HEIGHT = 64;
-    public static final int MAX_DEPTH = 64;
+    public static final int MAX_WIDTH = 128;
+    public static final int MAX_HEIGHT = 128;
+    public static final int MAX_DEPTH = 128;
 
 
     // Maximum amount of blocks in one build.
-    public static final int MAX_BLOCKS = 50_000;
+    public static final int MAX_BLOCKS = 100_000;
     private BlueprintValidator() {
         // Utility class - no instances required.
     }
@@ -36,11 +37,19 @@ public final class BlueprintValidator {
     // @param blueprint to validate
     // @param validation result
     public static ValidationResult validate(Blueprint blueprint) {
-        if (blueprint == null) {
+        if(blueprint == null) {
             return ValidationResult.failure("Blueprint is null.");
         }
 
-        if (blueprint.getWidth() <= 0 || blueprint.getHeight() <= 0 || blueprint.getDepth() <= 0) {
+        if(blueprint.getID() == null || blueprint.getID().isBlank()) {
+            return ValidationResult.failure("Blueprint ID is missing.");
+        }
+
+        if(blueprint.getName() == null || blueprint.getName().isBlank()) {
+            return ValidationResult.failure("Blueprint name is missing.");
+        }
+
+        if(blueprint.getWidth() <= 0 || blueprint.getHeight() <= 0 || blueprint.getDepth() <= 0) {
             return ValidationResult.failure("Blueprint dimensions must be greater than 0.");
         }
 
@@ -53,12 +62,10 @@ public final class BlueprintValidator {
         }
 
         Set<BlockPos> occupiedPos =  new HashSet<>();
-
         for(BlueprintBlock block: blueprint.getBlocks()) {
             if(block == null) {
                 return ValidationResult.failure("Blueprint contains a null block.");
             }
-
             BlockPos position = block.getPosition();
             if(!blueprint.containsPosition(position)) {
                 return ValidationResult.failure("Block exists outside blueprint bounds at " + position);
@@ -74,7 +81,7 @@ public final class BlueprintValidator {
                 blockID = ResourceLocation.parse(block.getBlockID());
             }
             catch (Exception exception) {
-                return ValidationResult.failure("Invalid block identifier: " + block.getBlockID());
+                return ValidationResult.failure("Invalid block ID: " + block.getBlockID());
             }
 
             if(!BuiltInRegistries.BLOCK.containsKey(blockID)) {
