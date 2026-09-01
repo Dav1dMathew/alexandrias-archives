@@ -71,13 +71,13 @@ public final class BuildManager {
 
     // Function for when Player starts a new build.
     // @return false if Player currently has a build running.
-    public static boolean startBuild(ServerPlayer player, Blueprint blueprint, BlockPos origin) {
+    public static boolean startBuild(ServerPlayer player, Blueprint blueprint, BlockPos origin, int rotation) {
         UUID  playerID = player.getUUID();
         if(ACTIVE_JOBS.containsKey(playerID)) {
             return false;
         }
         ServerLevel level = player.serverLevel();
-        BuildJob job = new BuildJob(level, origin, blueprint);
+        BuildJob job = new BuildJob(level, origin, blueprint, rotation);
         ACTIVE_JOBS.put(playerID, job);
         return true;
     }
@@ -135,7 +135,7 @@ public final class BuildManager {
         if(preview == null) {
             return false;
         }
-        boolean started = startBuild(player, preview.getBlueprint(), preview.getOrigin());
+        boolean started = startBuild(player, preview.getBlueprint(), preview.getOrigin(), preview.getRotation());
         if(!started) {
             return false;
         }
