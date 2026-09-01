@@ -117,7 +117,7 @@ public final class BuildManager {
     public static boolean cancelPreview(ServerPlayer player) {
         UUID playerID = player.getUUID();
         PreviewSession removed = PREVIEWS.remove(playerID);
-        if(removed != null) {
+        if(removed == null) {
             return false;
         }
         PreviewNetworking.sendStop(player);
