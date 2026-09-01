@@ -3,13 +3,14 @@ package net.thinkerthonker.alexandriasarchives.builder;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.network.PreviewNetworking;
-import java.util.ArrayDeque;
-import java.util.Deque;
+// import java.util.ArrayDeque;
+// import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -87,7 +88,7 @@ public final class BuildManager {
             return false;
         }
 
-        if(ACTIVE_JOBS.containsKey(playerID)) {
+        if(PREVIEWS.containsKey(playerID)) {
             return false;
         }
 
@@ -96,7 +97,7 @@ public final class BuildManager {
         }
 
         PREVIEWS.put(playerID, new PreviewSession(blueprint, origin));
-        PreviewNetworking.sendPreview(player, blueprint, origin, 0);
+        // PreviewNetworking.sendPreview(player, blueprint, origin, 0);
         return true;
     }
 
@@ -107,13 +108,14 @@ public final class BuildManager {
     // Player cancels an active build.
     public static boolean cancelBuild(ServerPlayer player) {
         BuildJob job = ACTIVE_JOBS.get(player.getUUID());
-        if(job != null) {
-            job.cancel();
-            return true;
+        if(job == null) {
+            return false;
         }
-        return false;
+        job.cancel();
+        return true;
     }
 
+    // Build Preview is removed & cancelled.
     public static boolean cancelPreview(ServerPlayer player) {
         UUID playerID = player.getUUID();
         PreviewSession removed = PREVIEWS.remove(playerID);
@@ -138,6 +140,9 @@ public final class BuildManager {
             return false;
         }
         PREVIEWS.remove(playerID);
+        
+        // Stops rendering.
+        PreviewNetworking.sendStop(player);
         return true;
     }
 
