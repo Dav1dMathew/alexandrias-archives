@@ -156,7 +156,7 @@ public final class LeaningTowerGenerator {
   }
 
   // Top Platform is generated.
-  private static void addTop(List<BlueprintBlock> blocksm int Xcenter, int Zcenter, int y) {
+  private static void addTop(List<BlueprintBlock> blocks int Xcenter, int Zcenter, int y) {
     int radius = 4;
     for(int x = -radius; x <= radius; x++) {
       for(int z = -radius; z <= radius; z++) {
