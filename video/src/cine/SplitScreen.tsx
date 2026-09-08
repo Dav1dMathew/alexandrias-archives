@@ -3,6 +3,7 @@ import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { BlueprintHero, BlueprintName } from "../BlueprintHero";
 import { fontStack } from "../theme";
 import { launch } from "../launchTheme";
+import { HeadsetView } from "./HeadsetView";
 
 // Two panels running at once: one structure assembling, one scrubbing
 // through its construction years. Shows that generation and timeline
@@ -13,7 +14,10 @@ export const SplitScreen: React.FC<{
   left: { name: BlueprintName; label: string; caption: string };
   right: { name: BlueprintName; label: string; years: number[] };
   size?: number;
-}> = ({ duration, left, right, size = 460 }) => {
+  /** Present the two panels through the headset - one per lens - instead
+   *  of side by side on a flat frame. */
+  headset?: boolean;
+}> = ({ duration, left, right, size = 460, headset = false }) => {
   const frame = useCurrentFrame();
 
   const opacity = interpolate(frame, [0, 22, duration - 24, duration], [0, 1, 1, 0], {
@@ -51,6 +55,12 @@ export const SplitScreen: React.FC<{
     <div
       style={{
         flex: 1,
+        // Without this the panels never get their fair share: a flex item
+        // defaults to min-width:auto, so each panel refuses to shrink
+        // below the BlueprintHero's own box (2x the model size). Two of
+        // those plus the divider overflow 1920 and shove both models off
+        // their panel centres - which is exactly what was happening.
+        minWidth: 0,
         height: "100%",
         position: "relative",
         display: "flex",
@@ -64,9 +74,9 @@ export const SplitScreen: React.FC<{
       <div
         style={{
           position: "absolute",
-          top: 96,
+          top: headset ? 246 : 96,
           fontFamily: fontStack,
-          fontSize: 19,
+          fontSize: headset ? 34 : 19,
           fontWeight: 600,
           letterSpacing: 5,
           textTransform: "uppercase",
@@ -76,41 +86,104 @@ export const SplitScreen: React.FC<{
         {tag}
       </div>
       {children}
-      <div style={{ position: "absolute", bottom: 108, textAlign: "center" }}>
+      <div
+        style={{
+          position: "absolute",
+          bottom: headset ? 244 : 108,
+          textAlign: "center",
+        }}
+      >
         {footer}
       </div>
     </div>
   );
 
+  const leftPanel = (
+    <Panel
+      tag={left.label}
+      slideFrom={headset ? 0 : -70}
+      footer={
+        <div
+          style={{
+            fontFamily: fontStack,
+            fontSize: headset ? 44 : 26,
+            fontWeight: 500,
+            color: launch.textSoft,
+            letterSpacing: -0.2,
+          }}
+        >
+          {left.caption}
+        </div>
+      }
+    >
+      <BlueprintHero
+        name={left.name}
+        rotation={(frame / duration) * Math.PI * 0.9}
+        size={size}
+        reveal={build}
+        tint={launch.model}
+        edgeTint={launch.accent}
+      />
+    </Panel>
+  );
+
+  const rightPanel = (
+    <Panel
+      tag={right.label}
+      slideFrom={headset ? 0 : 70}
+      footer={
+        <div
+          style={{
+            fontFamily: fontStack,
+            fontSize: headset ? 96 : 58,
+            fontWeight: 600,
+            color: launch.accent,
+            letterSpacing: -1.4,
+            lineHeight: 1,
+          }}
+        >
+          {currentYear}
+        </div>
+      }
+    >
+      <BlueprintHero
+        name={right.name}
+        rotation={scrub * Math.PI * 0.5}
+        size={size}
+        reveal={interpolate(scrub, [0, 1], [0.14, 1])}
+        tint={launch.model}
+        edgeTint={launch.accent}
+      />
+    </Panel>
+  );
+
+  // Through the headset the two panels take one lens each. A headset
+  // shows both eyes the same image, so this is a deliberate lie - but a
+  // split screen squeezed into a single 768px lens is unreadable, and
+  // legibility wins on a beat whose whole job is "these are two views of
+  // one engine".
+  if (headset) {
+    return (
+      <AbsoluteFill style={{ opacity }}>
+        <HeadsetView
+          contentScale={0.58}
+          focusPull={false}
+          parallax={0}
+          leftEye={
+            <AbsoluteFill style={{ background: launch.bg }}>{leftPanel}</AbsoluteFill>
+          }
+          rightEye={
+            <AbsoluteFill style={{ background: launch.bg }}>{rightPanel}</AbsoluteFill>
+          }
+        />
+      </AbsoluteFill>
+    );
+  }
+
   return (
     <AbsoluteFill style={{ opacity, background: launch.bg }}>
       <AbsoluteFill style={{ flexDirection: "row" }}>
-        <Panel
-          tag={left.label}
-          slideFrom={-70}
-          footer={
-            <div
-              style={{
-                fontFamily: fontStack,
-                fontSize: 26,
-                fontWeight: 500,
-                color: launch.textSoft,
-                letterSpacing: -0.2,
-              }}
-            >
-              {left.caption}
-            </div>
-          }
-        >
-          <BlueprintHero
-            name={left.name}
-            rotation={(frame / duration) * Math.PI * 0.9}
-            size={size}
-            reveal={build}
-            tint={launch.model}
-            edgeTint={launch.accent}
-          />
-        </Panel>
+        {leftPanel}
 
         {/* Divider */}
         <div
@@ -123,33 +196,7 @@ export const SplitScreen: React.FC<{
           }}
         />
 
-        <Panel
-          tag={right.label}
-          slideFrom={70}
-          footer={
-            <div
-              style={{
-                fontFamily: fontStack,
-                fontSize: 58,
-                fontWeight: 600,
-                color: launch.accent,
-                letterSpacing: -1.4,
-                lineHeight: 1,
-              }}
-            >
-              {currentYear}
-            </div>
-          }
-        >
-          <BlueprintHero
-            name={right.name}
-            rotation={scrub * Math.PI * 0.5}
-            size={size}
-            reveal={interpolate(scrub, [0, 1], [0.14, 1])}
-            tint={launch.model}
-            edgeTint={launch.accent}
-          />
-        </Panel>
+        {rightPanel}
       </AbsoluteFill>
     </AbsoluteFill>
   );

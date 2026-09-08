@@ -22,6 +22,10 @@ export const FootagePlate: React.FC<{
   /** Seconds into the source clip to begin. */
   startAtSeconds?: number;
   grade?: number;
+  /** <1 slows the clip down. Used to stretch a source of known length
+   *  across a slot of a different length instead of freezing on its last
+   *  frame once it runs out. */
+  playbackRate?: number;
   /** 0 = top of frame, 1 = bottom. Default sits in the lower third,
    *  which keeps type clear of the subject's face. */
   headlineY?: number;
@@ -32,6 +36,7 @@ export const FootagePlate: React.FC<{
   caption,
   startAtSeconds = 0,
   grade = 1,
+  playbackRate = 1,
   headlineY = 0.66,
 }) => {
   const frame = useCurrentFrame();
@@ -56,22 +61,34 @@ export const FootagePlate: React.FC<{
         <OffthreadVideo
           src={staticFile(src)}
           startFrom={Math.round(startAtSeconds * 30)}
+          playbackRate={playbackRate}
           muted
           style={{
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            // Pull the daylight down toward the cut's near-black ground
-            // and warm it so it sits with the orange accent.
-            filter: `brightness(${1 - 0.34 * grade}) contrast(${1 + 0.16 * grade}) saturate(${1 - 0.34 * grade}) sepia(${0.24 * grade})`,
+            // Pull the daylight down toward the cut's near-black ground.
+            // Warm plates have to be taken most of the way to mono first -
+            // a hue rotation alone leaves gold reading as gold, and the
+            // blue tint below can only do its job on neutral footage.
+            filter: `brightness(${1 - 0.34 * grade}) contrast(${1 + 0.18 * grade}) saturate(${1 - 0.78 * grade})`,
           }}
         />
       </AbsoluteFill>
 
-      {/* Warm wash + vignette to seat the plate in the palette */}
+      {/* Tint the now-neutral plate to the accent, then wash and
+          vignette it down into the ground. Blending on "color" keeps the
+          footage's own luminance, so faces and highlights survive. */}
       <AbsoluteFill
         style={{
-          background: `linear-gradient(180deg, rgba(255,106,26,${0.12 * grade}) 0%, rgba(10,8,6,${0.34 * grade}) 60%, rgba(5,4,3,${0.8 * grade}) 100%)`,
+          background: launch.accent,
+          mixBlendMode: "color",
+          opacity: 0.62 * grade,
+        }}
+      />
+      <AbsoluteFill
+        style={{
+          background: `linear-gradient(180deg, rgba(15,143,254,${0.16 * grade}) 0%, rgba(6,9,12,${0.36 * grade}) 60%, rgba(3,4,5,${0.8 * grade}) 100%)`,
         }}
       />
       <AbsoluteFill

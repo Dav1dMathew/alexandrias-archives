@@ -64,7 +64,7 @@ export const Lineup: React.FC<{
           justifyContent: "center",
           gap: 10,
           flexDirection: "row",
-          paddingTop: 70,
+          paddingTop: 96,
         }}
       >
         {entries.map((entry, index) => {
@@ -97,7 +97,7 @@ export const Lineup: React.FC<{
                   to overhang harmlessly against the flat background. */}
               <div
                 style={{
-                  height: 330,
+                  height: 430,
                   width: "100%",
                   display: "flex",
                   alignItems: "center",

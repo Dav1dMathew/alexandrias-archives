@@ -53,12 +53,12 @@ export const Glow: React.FC<{
     <AbsoluteFill style={{ pointerEvents: "none" }}>
       <AbsoluteFill
         style={{
-          background: `radial-gradient(ellipse 62% 54% at ${x + drift}% ${y}%, rgba(255,106,26,${0.3 * intensity}) 0%, rgba(255,106,26,${0.09 * intensity}) 34%, transparent 68%)`,
+          background: `radial-gradient(ellipse 62% 54% at ${x + drift}% ${y}%, rgba(15,143,254,${0.3 * intensity}) 0%, rgba(19,62,153,${0.11 * intensity}) 34%, transparent 68%)`,
         }}
       />
       <AbsoluteFill
         style={{
-          background: `radial-gradient(ellipse 42% 36% at ${x - drift}% ${y + 10}%, rgba(255,145,71,${0.16 * intensity}) 0%, transparent 60%)`,
+          background: `radial-gradient(ellipse 42% 36% at ${x - drift}% ${y + 10}%, rgba(102,194,255,${0.16 * intensity}) 0%, transparent 60%)`,
         }}
       />
       {/* Vignette last so it darkens the bloom's edges too */}

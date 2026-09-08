@@ -14,11 +14,18 @@ import { PhotoPlate } from "./cine/PhotoPlate";
 import { Grain, Glow } from "./cine/Grain";
 import { SplitScreen } from "./cine/SplitScreen";
 import { Immersive } from "./cine/Immersive";
+import { HeadsetView } from "./cine/HeadsetView";
 import { FootagePlate } from "./cine/FootagePlate";
 import { fontStack } from "./theme";
 import { launch } from "./launchTheme";
 
-export const LAUNCH_FRAMES = 1800; // 60s at 30fps
+// The in-VR shot plays its source clip end to end, which needs 10s. Six
+// bars (11.27s) is the smallest whole-bar slot that holds it - anything
+// shorter either truncates the clip or drags every later cut off the beat
+// grid, and that grid is measured off the track, not eyeballed.
+export const VR_SHOT_BARS = 6;
+const VR_CLIP_SECONDS = 10;
+export const LAUNCH_FRAMES = 2138; // 71.3s at 30fps
 
 // --------------------------------------------------------- beat grid
 //
@@ -457,52 +464,105 @@ export const Launch: React.FC = () => (
       />
     </Sequence>
 
-    {/* 7 bars - describe it. Types fast and clears as soon as the
-        reply has landed. */}
+    {/* 7 bars - describe it, still wearing the headset, so the prompt
+        reads as a panel floating in the space rather than a cut to a
+        laptop. Types fast and clears as soon as the reply has landed. */}
     <Sequence from={bar(7)} durationInFrames={bar(10) - bar(7)}>
-      <TypedPrompt
-        command="/aa build the burj khalifa in 2009"
-        reply="Supertall tapering tower, Y-shaped plan, stepped setbacks rising to a spire."
-        typeStart={8}
-        charsPerFrame={0.86}
-        replyStart={64}
-        replyCharsPerFrame={1.5}
-      />
+      <HeadsetView
+        continuous
+        contentScale={0.84}
+        contentOffsetX={-135}
+        contentOffsetY={-96}
+        warp={130}
+        focusPull={false}
+      >
+        <AbsoluteFill
+          style={{
+            background:
+              `radial-gradient(ellipse 68% 74% at 50% 44%, #16344d 0%, ` +
+              `#081420 58%, ${launch.bgDeep} 100%)`,
+          }}
+        />
+        <TypedPrompt
+          command="/aa build the burj khalifa in 2009"
+          reply="Supertall tapering tower, Y-shaped plan, stepped setbacks rising to a spire."
+          typeStart={8}
+          charsPerFrame={0.86}
+          replyStart={64}
+          replyCharsPerFrame={1.5}
+          replyAlign="left"
+          replyMaxWidth={400}
+        />
+      </HeadsetView>
     </Sequence>
 
-    {/* 10 bars - two views of one engine, side by side */}
-    <Sequence from={bar(10)} durationInFrames={bar(14) - bar(10)}>
+    {/* 10 bars - the payoff for the prompt: the structure it just
+        described, standing in the world, still seen from inside the
+        headset. Continuous rather than per-eye so it reads as one place
+        rather than two screens. The grade is deliberately light - this
+        beat's whole point is that it's the game, so washing it fully into
+        the palette would throw away the thing being shown. */}
+    <Sequence from={bar(10)} durationInFrames={bar(10 + VR_SHOT_BARS) - bar(10)}>
+      <HeadsetView
+        continuous
+        contentScale={1.16}
+        warp={110}
+        focusPull={false}
+        caption="Generated in-world"
+        // The headset dissolves back once you've registered you're wearing
+        // it, so the beat ends on the world rather than on the hardware.
+        plateOpacity={1}
+        plateOpacityTo={0.42}
+        plateFadeStart={26}
+        plateFadeEnd={132}
+      >
+        <FootagePlate
+          src="vr_build.mp4"
+          duration={bar(10 + VR_SHOT_BARS) - bar(10)}
+          startAtSeconds={0}
+          // 10s of source stretched across 11.27s of slot. The slight
+          // slow motion fills the bars exactly rather than freezing on the
+          // last frame for the remainder.
+          playbackRate={VR_CLIP_SECONDS / ((bar(10 + VR_SHOT_BARS) - bar(10)) / 30)}
+          grade={0.3}
+        />
+      </HeadsetView>
+    </Sequence>
+
+    {/* 16 bars - two views of one engine, side by side */}
+    <Sequence from={bar(16)} durationInFrames={bar(20) - bar(16)}>
       <SplitScreen
-        duration={bar(14) - bar(10)}
-        size={600}
+        duration={bar(20) - bar(16)}
+        headset
+        size={620}
         left={{ name: "eiffel", label: "Generating", caption: "Eiffel Tower" }}
         right={{ name: "burj", label: "Timeline", years: [2004, 2006, 2008, 2010] }}
       />
     </Sequence>
 
     {/* 14 bars - the range */}
-    <Sequence from={bar(14)} durationInFrames={bar(18) - bar(14)}>
+    <Sequence from={bar(20)} durationInFrames={bar(24) - bar(20)}>
       <Lineup
-        duration={bar(18) - bar(14)}
+        duration={bar(24) - bar(20)}
         headline="Not one shape. Any shape."
         stagger={14}
         entries={[
-          { name: "concorde", label: "Concorde", size: 380 },
-          { name: "boeing747", label: "Boeing 747", size: 380 },
-          { name: "whitehouse", label: "The White House", size: 380 },
-          { name: "eye", label: "London Eye", size: 380 },
+          { name: "concorde", label: "Concorde", size: 480 },
+          { name: "boeing747", label: "Boeing 747", size: 480 },
+          { name: "whitehouse", label: "The White House", size: 480 },
+          { name: "eye", label: "London Eye", size: 480 },
         ]}
       />
     </Sequence>
 
     {/* 18 bars - trust */}
-    <Sequence from={bar(18)} durationInFrames={bar(21) - bar(18)}>
-      <Trust duration={bar(21) - bar(18)} />
+    <Sequence from={bar(24)} durationInFrames={bar(27) - bar(24)}>
+      <Trust duration={bar(27) - bar(24)} />
     </Sequence>
 
     {/* 21 bars - close out the remaining frames */}
-    <Sequence from={bar(21)} durationInFrames={LAUNCH_FRAMES - bar(21)}>
-      <Close duration={LAUNCH_FRAMES - bar(21)} />
+    <Sequence from={bar(27)} durationInFrames={LAUNCH_FRAMES - bar(27)}>
+      <Close duration={LAUNCH_FRAMES - bar(27)} />
     </Sequence>
 
     {/* Grain sits above everything so it films the whole frame */}

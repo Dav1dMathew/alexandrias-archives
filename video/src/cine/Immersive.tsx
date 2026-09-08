@@ -3,14 +3,12 @@ import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { BlueprintHero, BlueprintName } from "../BlueprintHero";
 import { fontStack } from "../theme";
 import { launch } from "../launchTheme";
+import { HeadsetView } from "./HeadsetView";
 
-// The "you're inside it" beat. A stereo pair of viewports - the shape a
-// headset actually presents - each showing the same structure from a
-// slightly offset angle, with the camera pushing in the whole time.
-//
-// Honest about what it is: a representation of the intended VR product
-// from the report's roadmap, not a capture of a working headset build,
-// which doesn't exist yet.
+// The "you're inside it" beat. Shot from behind the optics: one continuous
+// scene through the binocular opening, with the camera pushing in the whole
+// time. Two separate circles read as a diagram of a headset - this reads as
+// wearing one.
 export const Immersive: React.FC<{
   duration: number;
   name: BlueprintName;
@@ -29,101 +27,60 @@ export const Immersive: React.FC<{
   const push = interpolate(frame, [0, duration], [430, 620]);
   const orbit = (frame / duration) * Math.PI * 0.85;
 
-  const lensIn = interpolate(frame, [4, 34], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  const Lens: React.FC<{ eyeOffset: number }> = ({ eyeOffset }) => (
-    <div
-      style={{
-        position: "relative",
-        width: 660,
-        height: 660,
-        borderRadius: "50%",
-        overflow: "hidden",
-        background: `radial-gradient(circle at 50% 44%, ${launch.surface} 0%, ${launch.bgDeep} 78%)`,
-        border: `2px solid ${launch.accent}3a`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        transform: `scale(${interpolate(lensIn, [0, 1], [0.86, 1])})`,
-      }}
-    >
-      <BlueprintHero
-        name={name}
-        // A few degrees of parallax between the eyes.
-        rotation={orbit + eyeOffset}
-        size={push}
-        tint={launch.model}
-      />
-      {/* Lens falloff */}
-      <AbsoluteFill
-        style={{
-          background: `radial-gradient(circle at 50% 50%, transparent 52%, ${launch.bgDeep}f2 92%)`,
-        }}
-      />
-    </div>
-  );
-
   return (
-    <AbsoluteFill style={{ opacity, background: launch.bg }}>
-      {headline && (
-        <AbsoluteFill
-          style={{ alignItems: "center", justifyContent: "flex-start", paddingTop: 86 }}
-        >
-          <div
-            style={{
-              fontFamily: fontStack,
-              fontSize: 72,
-              fontWeight: 600,
-              letterSpacing: -1.7,
-              color: launch.text,
-              textAlign: "center",
-              maxWidth: 1500,
-              lineHeight: 1.1,
-            }}
-          >
-            {headline}
-          </div>
-        </AbsoluteFill>
-      )}
-
-      <AbsoluteFill
-        style={{
-          alignItems: "center",
-          justifyContent: "center",
-          flexDirection: "row",
-          gap: 34,
-          paddingTop: 40,
-        }}
-      >
-        <Lens eyeOffset={-0.05} />
-        <Lens eyeOffset={0.05} />
-      </AbsoluteFill>
-
-      {caption && (
+    <AbsoluteFill style={{ opacity }}>
+      <HeadsetView caption={caption} contentScale={0.62}>
+        {/* The panels are the only light source in the shot, so the world
+            has to sit clearly above the black shell or the opening
+            disappears. */}
         <AbsoluteFill
           style={{
-            alignItems: "center",
-            justifyContent: "flex-end",
-            paddingBottom: 74,
+            background:
+              `radial-gradient(ellipse 70% 76% at 50% 44%, #16344d 0%, ` +
+              `#081420 58%, ${launch.bgDeep} 100%)`,
           }}
-        >
-          <div
-            style={{
-              fontFamily: fontStack,
-              fontSize: 24,
-              fontWeight: 500,
-              letterSpacing: 4,
-              textTransform: "uppercase",
-              color: launch.accent,
-            }}
-          >
-            {caption}
-          </div>
+        />
+
+        {/* Floor plane, so the structure is standing in a space rather
+            than floating in a void */}
+        <AbsoluteFill
+          style={{
+            background:
+              `linear-gradient(to top, ${launch.accent}12 0%, transparent 32%)`,
+          }}
+        />
+
+        <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
+          <BlueprintHero
+            name={name}
+            rotation={orbit}
+            size={push}
+            tint={launch.model}
+          />
         </AbsoluteFill>
-      )}
+
+        {headline && (
+          <AbsoluteFill
+            style={{ alignItems: "center", justifyContent: "flex-start", paddingTop: 150 }}
+          >
+            <div
+              style={{
+                fontFamily: fontStack,
+                fontSize: 66,
+                fontWeight: 600,
+                letterSpacing: -1.6,
+                color: launch.text,
+                textAlign: "center",
+                maxWidth: 1180,
+                lineHeight: 1.1,
+                textShadow: "0 6px 44px rgba(0,0,0,0.85)",
+              }}
+            >
+              {headline}
+            </div>
+          </AbsoluteFill>
+        )}
+      </HeadsetView>
     </AbsoluteFill>
   );
 };

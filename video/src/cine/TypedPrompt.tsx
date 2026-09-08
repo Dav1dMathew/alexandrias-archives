@@ -30,6 +30,11 @@ export const TypedPrompt: React.FC<{
   charsPerFrame?: number;
   replyStart?: number;
   replyCharsPerFrame?: number;
+  /** Left-align and cap the reply's width. Centred full-width copy runs
+   *  straight through the headset's nose bridge; pinned left it stays
+   *  inside one lens. */
+  replyAlign?: "center" | "left";
+  replyMaxWidth?: number;
 }> = ({
   command,
   reply,
@@ -37,6 +42,8 @@ export const TypedPrompt: React.FC<{
   charsPerFrame = 0.42,
   replyStart = 130,
   replyCharsPerFrame = 0.75,
+  replyAlign = "center",
+  replyMaxWidth,
 }) => {
   const frame = useCurrentFrame();
 
@@ -187,7 +194,8 @@ export const TypedPrompt: React.FC<{
               letterSpacing: -0.3,
               lineHeight: 1.5,
               color: "rgba(232,239,246,0.9)",
-              textAlign: "center",
+              textAlign: replyAlign,
+              maxWidth: replyMaxWidth,
               minHeight: 84,
               textShadow: "0 4px 40px rgba(0,0,0,0.9)",
             }}
