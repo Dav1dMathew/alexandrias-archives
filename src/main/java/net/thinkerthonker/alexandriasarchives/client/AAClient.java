@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.KeyMapping;
 import net.thinkerthonker.alexandriasarchives.client.gui.BuildScreen;
+import net.thinkerthonker.alexandriasarchives.client.preview.PreviewClientNetworking;
 import net.thinkerthonker.alexandriasarchives.client.preview.PreviewManager;
 import net.thinkerthonker.alexandriasarchives.client.preview.PreviewRenderer;
 import org.lwjgl.glfw.GLFW;
@@ -20,6 +21,7 @@ public class AAClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         PreviewManager.initialize();
+        PreviewClientNetworking.initialize();
         PreviewRenderer.initialize();
 
         openBuildScreenKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(

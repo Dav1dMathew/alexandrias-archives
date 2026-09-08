@@ -29,14 +29,16 @@ public class BuildJob {
     // Stores original state of every block changed by BuildJob. A LinkedHashMap has been implemented to give us
     // a deterministic restoration order.
     private final Map<BlockPos, BlockState> originalStates = new LinkedHashMap<>();
+    private final int rotation;
     private int currentIndex = 0;
     private boolean finished = false;
     private boolean cancelled = false;
 
-    public BuildJob(ServerLevel level, BlockPos origin, Blueprint blueprint) {
+    public BuildJob(ServerLevel level, BlockPos origin, Blueprint blueprint, int rotation) {
         this.level = level;
         this.origin = origin;
         this.blueprint = blueprint;
+        this.rotation = Math.floorMod(rotation, 4);
     }
 
     // Processes next portion of build.
@@ -48,7 +50,7 @@ public class BuildJob {
         int blocksThisTick = 0;
         while(currentIndex < blocks.size() && blocksThisTick < BLOCKS_PER_TICK) {
             BlueprintBlock blueprintBlock = blocks.get(currentIndex);
-            BlockPos worldPosition = origin.offset(blueprintBlock.getPosition());
+            BlockPos worldPosition = BlueprintTransform.transform(localPosition, origin, rotation);
 
             // Saves a copy of the original world state before it is modified.
             // This allows the Player to reset / undo the build later on.

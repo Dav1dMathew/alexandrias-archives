@@ -3,12 +3,14 @@ package net.thinkerthonker.alexandriasarchives.builder;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
-import java.util.ArrayDeque;
-import java.util.Deque;
+import net.thinkerthonker.alexandriasarchives.network.PreviewNetworking;
+// import java.util.ArrayDeque;
+// import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -69,13 +71,13 @@ public final class BuildManager {
 
     // Function for when Player starts a new build.
     // @return false if Player currently has a build running.
-    public static boolean startBuild(ServerPlayer player, Blueprint blueprint, BlockPos origin) {
+    public static boolean startBuild(ServerPlayer player, Blueprint blueprint, BlockPos origin, int rotation) {
         UUID  playerID = player.getUUID();
         if(ACTIVE_JOBS.containsKey(playerID)) {
             return false;
         }
         ServerLevel level = player.serverLevel();
-        BuildJob job = new BuildJob(level, origin, blueprint);
+        BuildJob job = new BuildJob(level, origin, blueprint, rotation);
         ACTIVE_JOBS.put(playerID, job);
         return true;
     }
@@ -86,7 +88,16 @@ public final class BuildManager {
             return false;
         }
 
+        if(PREVIEWS.containsKey(playerID)) {
+            return false;
+        }
+
+        if(blueprint == null || origin == null) {
+            return false;
+        }
+
         PREVIEWS.put(playerID, new PreviewSession(blueprint, origin));
+        // PreviewNetworking.sendPreview(player, blueprint, origin, 0);
         return true;
     }
 
@@ -97,25 +108,42 @@ public final class BuildManager {
     // Player cancels an active build.
     public static boolean cancelBuild(ServerPlayer player) {
         BuildJob job = ACTIVE_JOBS.get(player.getUUID());
-        if(job != null) {
-            job.cancel();
-            return true;
+        if(job == null) {
+            return false;
         }
-        return false;
+        job.cancel();
+        return true;
     }
 
+    // Build Preview is removed & cancelled.
     public static boolean cancelPreview(ServerPlayer player) {
-        return PREVIEWS.remove(player.getUUID()) != null;
+        UUID playerID = player.getUUID();
+        PreviewSession removed = PREVIEWS.remove(playerID);
+        if(removed == null) {
+            return false;
+        }
+        PreviewNetworking.sendStop(player);
+        return true;
     }
 
     public static boolean confirmPreview(ServerPlayer player) {
         UUID playerID = player.getUUID();
-        PreviewSession preview = PREVIEWS.remove(playerID);
+        if(ACTIVE_JOBS.containsKey(playerID)) {
+            return false;
+        }
+        PreviewSession preview = PREVIEWS.get(playerID);
         if(preview == null) {
             return false;
         }
-
-        return startBuild(player, preview.getBlueprint(), preview.getOrigin());
+        boolean started = startBuild(player, preview.getBlueprint(), preview.getOrigin(), preview.getRotation());
+        if(!started) {
+            return false;
+        }
+        PREVIEWS.remove(playerID);
+        
+        // Stops rendering.
+        PreviewNetworking.sendStop(player);
+        return true;
     }
 
     // Restores the previously completed build.

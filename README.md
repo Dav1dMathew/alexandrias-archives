@@ -42,7 +42,7 @@ Three services speak a shared JSON **Blueprint** contract:
 | Stage | Service | Role |
 |---|---|---|
 | 1 | **Fabric Mod** (Java, this repo's `src/`) | Reads the player's `/aa build` prompt, sends the request, validates and places the returned structure in the world tick-by-tick |
-| 2 | **Spring Boot backend** (`:8080`) | Orchestrates the request — receives it from the mod and forwards it to the AI service |
+| 2 | **Spring Boot backend** (`:8080`, this repo's `backend/`) | Orchestrates the request — receives it from the mod and forwards it to the AI service |
 | 3 | **FastAPI AI service** (`:8000`, this repo's [`ai-service/`](ai-service)) | Analyzes the prompt/image and returns a structured `Blueprint` (dimensions + block list) |
 
 The mod then validates the blueprint (`BlueprintValidator`) against sane size/block-count limits, and places it into the world in rate-limited batches (`BuildJob`) so large AI-generated builds don't freeze the server.
@@ -93,6 +93,19 @@ uvicorn main:app --reload --port 8000
 ```
 
 Visit `http://localhost:8000/docs` for the interactive Swagger UI. Try `POST /generate` with `{"prompt": "a massive stone lighthouse"}` — different archetypes, scales, and materials produce genuinely different structures. `/analyze` (photo upload) still returns a fixed mock `Blueprint` until Tier 1 lands.
+
+### Spring Boot backend
+
+Start the AI service first, then run:
+
+```bash
+./gradlew -p backend bootRun
+```
+
+The backend listens on `http://localhost:8080`. `POST /generate` accepts the
+same JSON request as the AI service and proxies its Blueprint response. Set
+`AI_SERVICE_BASE_URL` to use an AI service anywhere other than
+`http://localhost:8000`.
 
 ## Status
 
