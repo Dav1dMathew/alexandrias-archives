@@ -20,8 +20,18 @@ import java.util.Map;
 
 public class BuildJob {
 
-    // Number of placeable blocks in one tick.
-    private static final int BLOCKS_PER_TICK = 100;
+    // Placement is spread across ticks so a large structure never freezes
+    // the server, but a fixed rate does not survive the range of sizes here:
+    // at 100 blocks/tick the Concorde (2,483 blocks) finishes in a little
+    // over a second while the Burj Khalifa (326,630) would take nearly three
+    // minutes. Instead the rate is chosen per job to land near a target
+    // duration, so every landmark reads as the same deliberate, visible
+    // block-by-block assembly.
+    private static final int TARGET_TICKS = 170;   // ~8.5 seconds
+    private static final int MIN_BLOCKS_PER_TICK = 25;
+    private static final int MAX_BLOCKS_PER_TICK = 4000;
+
+    private final int blocksPerTick;
     private final ServerLevel level;
     private final BlockPos origin;
     private final Blueprint blueprint;
@@ -39,6 +49,10 @@ public class BuildJob {
         this.origin = origin;
         this.blueprint = blueprint;
         this.rotation = Math.floorMod(rotation, 4);
+        this.blocksPerTick = Math.max(
+                MIN_BLOCKS_PER_TICK,
+                Math.min(MAX_BLOCKS_PER_TICK,
+                        (blueprint.getBlockCount() + TARGET_TICKS - 1) / TARGET_TICKS));
     }
 
     // Processes next portion of build.
@@ -48,14 +62,14 @@ public class BuildJob {
         }
         List<BlueprintBlock> blocks = blueprint.getBlocks();
         int blocksThisTick = 0;
-        while(currentIndex < blocks.size() && blocksThisTick < BLOCKS_PER_TICK) {
+        while(currentIndex < blocks.size() && blocksThisTick < blocksPerTick) {
             BlueprintBlock blueprintBlock = blocks.get(currentIndex);
-            BlockPos worldPosition = BlueprintTransform.transform(localPosition, origin, rotation);
+            BlockPos worldPosition = BlueprintTransform.transform(blueprintBlock.getPosition(), origin, rotation);
 
             // Saves a copy of the original world state before it is modified.
             // This allows the Player to reset / undo the build later on.
             originalStates.putIfAbsent(worldPosition, level.getBlockState(worldPosition));
-            StructureBuilder.placeBlock(level, origin, blueprintBlock);
+            StructureBuilder.placeBlockAt(level, worldPosition, blueprintBlock);
             currentIndex++;
             blocksThisTick++;
         }

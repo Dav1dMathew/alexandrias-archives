@@ -16,8 +16,16 @@ public final class PreviewNetworking {
     private PreviewNetworking() {
     }
     public static void initialize () {
+        // Each payload is registered on the direction it actually travels.
+        // PreviewPayload only ever goes server -> client (sendPreview and
+        // sendStop both use ServerPlayNetworking.send); PreviewTransformPayload
+        // only ever comes back client -> server when the player nudges or
+        // rotates the preview. Registering PreviewPayload on both directions
+        // while leaving PreviewTransformPayload unregistered is what made the
+        // receiver below throw at startup.
         PayloadTypeRegistry.playS2C().register(PreviewPayload.TYPE, PreviewPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(PreviewPayload.TYPE, PreviewPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(PreviewTransformPayload.TYPE, PreviewTransformPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(OpenUiPayload.TYPE, OpenUiPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(PreviewTransformPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
             context.server().execute(() -> handleTransform(player, payload));});
@@ -66,6 +74,11 @@ public final class PreviewNetworking {
     public static void sendAuthoritativePreview(ServerPlayer player, PreviewSession preview) {
         sendPreview(player, preview.getBlueprint(), preview.getOrigin(), preview.getRotation());
     }
+    // Asks the client to open one of the mod's screens.
+    public static void sendOpenUi(ServerPlayer player, String screen) {
+        ServerPlayNetworking.send(player, new OpenUiPayload(screen));
+    }
+
     public static void sendStop(ServerPlayer player) {
         ServerPlayNetworking.send(player, PreviewPayload.stop());
     }

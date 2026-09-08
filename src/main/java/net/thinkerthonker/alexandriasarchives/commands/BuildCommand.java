@@ -16,6 +16,8 @@ import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
 import net.thinkerthonker.alexandriasarchives.network.PreviewNetworking;
 import net.thinkerthonker.alexandriasarchives.service.AiServiceClient;
 import net.thinkerthonker.alexandriasarchives.service.LandmarkRegistry;
+import net.thinkerthonker.alexandriasarchives.builder.BuildProgressBar;
+import net.thinkerthonker.alexandriasarchives.service.LandmarkLibrary;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -117,6 +119,60 @@ public class BuildCommand {
             return 0;
         }
 
+        // Landmark fast path. Any prompt naming one of the curated models
+        // resolves to it, wherever the name appears - "build the eiffel
+        // tower at sunset" and a bare "eiffel" both land here. Everything
+        // else falls through to the AI service below.
+        String landmarkId = LandmarkRegistry.match(prompt);
+        if (landmarkId != null) {
+            String landmarkName = LandmarkRegistry.displayName(landmarkId);
+            BuildProgressBar.open(player, "Loading " + landmarkName + "...");
+            BuildProgressBar.update(player, "Loading " + landmarkName + "...", 0.25f);
+
+            Blueprint landmarkBlueprint = LandmarkLibrary.load(landmarkId);
+            if (landmarkBlueprint == null) {
+                BuildProgressBar.fail(player, "Could not load " + landmarkName);
+                source.sendFailure(Component.literal("Landmark model is missing: " + landmarkId));
+                return 0;
+            }
+
+            BuildProgressBar.update(player, "Validating " + landmarkName + "...", 0.6f);
+            BlueprintValidator.ValidationResult landmarkValidation =
+                    BlueprintValidator.validateLandmark(landmarkBlueprint);
+            if (!landmarkValidation.valid()) {
+                BuildProgressBar.fail(player, "Validation failed: " + landmarkValidation.message());
+                source.sendFailure(Component.literal(
+                        "Validation Failed for Blueprint landmark: " + landmarkValidation.message()));
+                return 0;
+            }
+
+            // Placed clear of the player, far enough out that a large
+            // footprint does not land on top of them.
+            int clearance = Math.max(8, Math.max(landmarkBlueprint.getWidth(),
+                    landmarkBlueprint.getDepth()) / 2 + 4);
+            BlockPos landmarkOrigin = player.blockPosition().relative(player.getDirection(), clearance);
+
+            if (!BuildManager.startPreview(player, landmarkBlueprint, landmarkOrigin)) {
+                BuildProgressBar.fail(player, "Preview could not be loaded");
+                source.sendFailure(Component.literal("Preview could not be loaded."));
+                return 0;
+            }
+
+            PreviewNetworking.sendPreview(player, landmarkBlueprint, landmarkOrigin, 0);
+            BuildProgressBar.update(player, landmarkName + " - position it, then confirm", 1.0f);
+
+            source.sendSuccess(() -> Component.literal(
+                    "Alexandria's Archives: " + landmarkName + " ready - "
+                            + landmarkBlueprint.getWidth() + "x" + landmarkBlueprint.getHeight()
+                            + "x" + landmarkBlueprint.getDepth() + ", "
+                            + landmarkBlueprint.getBlockCount() + " blocks."), true);
+            source.sendSuccess(() -> Component.literal(
+                    "Controls: R = rotate | Arrow Keys = move | Page Up/Down = vertical move"), false);
+            source.sendSuccess(() -> Component.literal(
+                    "Use '/aa build confirm' to place it, or '/aa build cancel' to discard."), false);
+            return 1;
+        }
+
         MinecraftServer server = source.getServer();
         BlockPos buildOrigin = player.blockPosition().relative(player.getDirection(), 5);
 
@@ -215,27 +271,6 @@ public class BuildCommand {
         PreviewNetworking.sendStop(player);
         source.sendSuccess(() -> Component.literal("Requesting Build Cancellation..."), false);
         return 1;
-    }
-
-    private static int executeGenerate(CommandSourceStack source, String prompt) {
-        Blueprint landmarkBlueprint = LandmarkRegistry.generate(prompt);
-        if(landmarkBlueprint != null) {
-            BlueprintValidator.ValidationResult validation = BlueprintValidator.validate(landmarkBlueprint);
-            if(!validation.valid()) {
-                source.sendFailure(Component.literal("Validation Failed for Blueprint landmark: " + validation.message()));
-                return 0;
-            }
-            BlockPos buildOrigin = player.blockPosition().relative(player.getDirection(), 8);
-            boolean started = BuildManager.startPreview(player, landmarkBlueprint, buildOrigin);
-            if(!started) {
-                source.sendFailure(Component.literal("Preview could not be loaded."));
-                return 0;
-            }
-            PreviewNetworking.sendPreview(player, landmarkBlueprint, buildOrigin, 0);
-            source.sendSuccess(() -> Component.literal("Alexandria's Archives: " + landmarkBlueprint.getName() + " preview ready!"), true);
-            source.sendSuccess(() -> Component.literal("Use '/aa build confirm' to generate structure."), false);
-            return 1;
-        }
     }
 
     // Player uses "Undo" command on previous completed build.

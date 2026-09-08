@@ -58,3 +58,6 @@ video/out/
 video/.remotion/
 
 video/__pycache__/
+
+# claude code local settings
+.claude/settings.local.json

@@ -26,8 +26,10 @@ public final class BlueprintTransform {
         Zrotation = -z;
       }
       case 3 -> {
-        Xrotation = x;
-        Zrotation = z;
+        // 270 degrees. This case previously duplicated the identity
+        // branch, so a quarter of all rotations silently did nothing.
+        Xrotation = z;
+        Zrotation = -x;
       }
       default -> {
         Xrotation = x;

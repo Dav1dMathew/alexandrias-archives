@@ -1,10 +1,7 @@
 package net.thinkerthonker.alexandriasarchives.builder;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
@@ -27,20 +24,26 @@ public final class StructureBuilder {
             BlockPos origin,
             BlueprintBlock blueprintBlock
     ) {
-        BlockPos worldPosition = origin.offset(
-                blueprintBlock.getPosition()
-        );
-        ResourceLocation blockID = ResourceLocation.parse(
-                blueprintBlock.getBlockID()
-        );
-        Block block = BuiltInRegistries.BLOCK.get(blockID);
+        placeBlockAt(level, origin.offset(blueprintBlock.getPosition()), blueprintBlock);
+    }
 
-        // This should never occur as the BlueprintValidator Class checks the registry first.
-        if(block == null) {
+    // Places at an already-resolved world position. BuildJob computes the
+    // rotated position itself; the origin-relative overload above ignores
+    // rotation, so using it for placement built an unrotated structure while
+    // the preview showed a rotated one.
+    public static void placeBlockAt(
+            ServerLevel level,
+            BlockPos worldPosition,
+            BlueprintBlock blueprintBlock
+    ) {
+        // Parsed through BlockStates so bracketed properties (stair facing,
+        // slab half, pillar axis) survive. Returns null only for a block id
+        // that is not in the registry, which BlueprintValidator screens for.
+        BlockState blockState = BlockStates.parse(blueprintBlock.getBlockID());
+        if(blockState == null) {
             return;
         }
 
-        BlockState blockState = block.defaultBlockState();
         level.setBlock(worldPosition, blockState, 3);
     }
 

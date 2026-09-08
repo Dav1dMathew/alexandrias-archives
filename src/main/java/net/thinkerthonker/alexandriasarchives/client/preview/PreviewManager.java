@@ -5,6 +5,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.player.Input;
 import net.minecraft.core.BlockPos;
+import net.thinkerthonker.alexandriasarchives.builder.BlueprintTransform;
 import net.thinkerthonker.alexandriasarchives.model.Blueprint;
 import net.thinkerthonker.alexandriasarchives.model.BlueprintBlock;
 import net.thinkerthonker.alexandriasarchives.network.PreviewPayload;
@@ -184,28 +185,16 @@ public final class PreviewManager {
 
     // Blueprint-local position is converted into world position.
     // Performs rotation around Y-axis.
+    // Delegates to the same transform the server places with. This used to
+    // carry its own copy of the rotation maths, and the two disagreed: the
+    // client rotated 90 degrees at rotation 0 where the server did nothing,
+    // and negated Y at rotation 1. That is why the preview never landed
+    // where the structure was actually built.
     public static BlockPos transformPosition(BlockPos localPosition) {
         if(origin == null) {
             return localPosition;
         }
-        int x = localPosition.getX();
-        int y = localPosition.getY();
-        int z = localPosition.getZ();
-        BlockPos rotated;
-        switch(rotation) {
-            case 0:
-                rotated = new BlockPos(-z, y, x);
-                break;
-            case 1:
-                rotated = new BlockPos(-x, -y, -z);
-                break;
-            case 2:
-                rotated = new BlockPos(z, y, -x);
-                break;
-            default:
-                rotated = localPosition;
-        }
-        return origin.offset(rotated);
+        return BlueprintTransform.transform(localPosition, origin, rotation);
     }
 
     public static String[] getPreviewBlockIDs() {

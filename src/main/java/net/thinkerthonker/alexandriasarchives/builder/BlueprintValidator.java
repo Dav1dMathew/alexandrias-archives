@@ -36,7 +36,16 @@ public final class BlueprintValidator {
     // Validates a blueprint.
     // @param blueprint to validate
     // @param validation result
+    // Curated landmark models bypass the AI-oriented size caps.
+    public static ValidationResult validateLandmark(Blueprint blueprint) {
+        return validate(blueprint, true);
+    }
+
     public static ValidationResult validate(Blueprint blueprint) {
+        return validate(blueprint, false);
+    }
+
+    private static ValidationResult validate(Blueprint blueprint, boolean trusted) {
         if(blueprint == null) {
             return ValidationResult.failure("Blueprint is null.");
         }
@@ -53,12 +62,19 @@ public final class BlueprintValidator {
             return ValidationResult.failure("Blueprint dimensions must be greater than 0.");
         }
 
-        if(blueprint.getWidth() > MAX_WIDTH || blueprint.getHeight() > MAX_HEIGHT ||  blueprint.getDepth() > MAX_DEPTH) {
-            return ValidationResult.failure("Blueprint exceeds the maximum allowed dimensions.");
-        }
+        // The size caps guard against a hallucinated blueprint from the AI
+        // service asking for something absurd. The bundled landmarks are
+        // curated, converted offline and checked in, so they are exempt -
+        // the 1:1 Burj Khalifa is 179x831x169 and 326,630 blocks, all of it
+        // deliberate.
+        if(!trusted) {
+            if(blueprint.getWidth() > MAX_WIDTH || blueprint.getHeight() > MAX_HEIGHT ||  blueprint.getDepth() > MAX_DEPTH) {
+                return ValidationResult.failure("Blueprint exceeds the maximum allowed dimensions.");
+            }
 
-        if(blueprint.getBlockCount() > MAX_BLOCKS) {
-            return ValidationResult.failure("Blueprint contains too many blocks.");
+            if(blueprint.getBlockCount() > MAX_BLOCKS) {
+                return ValidationResult.failure("Blueprint contains too many blocks.");
+            }
         }
 
         Set<BlockPos> occupiedPos =  new HashSet<>();
@@ -78,7 +94,7 @@ public final class BlueprintValidator {
 
             ResourceLocation blockID;
             try {
-                blockID = ResourceLocation.parse(block.getBlockID());
+                blockID = ResourceLocation.parse(BlockStates.blockId(block.getBlockID()));
             }
             catch (Exception exception) {
                 return ValidationResult.failure("Invalid block ID: " + block.getBlockID());

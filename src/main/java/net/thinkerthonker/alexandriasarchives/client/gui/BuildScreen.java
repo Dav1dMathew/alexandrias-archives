@@ -119,6 +119,15 @@ public class BuildScreen extends Screen {
         this.onClose();
     }
 
+
+    // Vanilla's renderBackground() applies the pause-menu blur post effect,
+    // which smears everything already drawn this frame - the panel and its
+    // text - while widgets drawn afterwards stay sharp. The dim is drawn by
+    // hand in render() instead, so this is deliberately empty.
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    }
+
     @Override
     public boolean isPauseScreen() {
         return false;

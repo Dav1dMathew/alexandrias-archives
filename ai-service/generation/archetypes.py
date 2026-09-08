@@ -245,6 +245,118 @@ def generate_tower(params: GenerationParams) -> tuple[list[Block], int, int, int
     return blocks, width, actual_height, depth
 
 
+def generate_lattice_tower(params: GenerationParams) -> tuple[list[Block], int, int, int]:
+    # A wrought-iron lattice tower - the Eiffel Tower's actual shape,
+    # which "tower" cannot produce. generate_tower extrudes one closed
+    # footprint per layer, so its output is always a building: a solid
+    # shaft you could walk floors in. The Eiffel Tower is the opposite -
+    # four separate splayed legs standing apart, joined by platforms,
+    # merging into a single shaft only near the top. You have to be able
+    # to see daylight between the legs or it reads as a skyscraper, which
+    # is exactly how the old "eiffel" preset came out.
+    #
+    # Proportions are the real tower's, as fractions of its 330m:
+    # first platform 57m (0.17), second 115m (0.35), top floor 276m
+    # (0.84), then the antenna mast to the tip.
+    height = _scale(30, params, minimum=14)
+    base_half = max(3, round(height * 0.28))
+
+    p1_y = max(2, round(height * 0.17))
+    p2_y = max(p1_y + 2, round(height * 0.35))
+    top_y = max(p2_y + 2, round(height * 0.84))
+
+    p1_half = max(2, round(base_half * 0.56))
+    p2_half = max(1, round(base_half * 0.30))
+    top_half = max(1, round(base_half * 0.14))
+
+    def half_at(y: int) -> float:
+        # Piecewise through the real platform widths. The legs are convex
+        # curves in life; across this few blocks the straight segments
+        # between platforms are indistinguishable from the curve, and they
+        # keep the platform edges landing exactly on a block.
+        if y <= p1_y:
+            return base_half + (p1_half - base_half) * (y / max(1, p1_y))
+        if y <= p2_y:
+            return p1_half + (p2_half - p1_half) * ((y - p1_y) / max(1, p2_y - p1_y))
+        if y <= top_y:
+            return p2_half + (top_half - p2_half) * ((y - p2_y) / max(1, top_y - p2_y))
+        return top_half
+
+    blocks: list[Block] = []
+    seen: set[tuple[int, int, int]] = set()
+
+    def put(x: int, y: int, z: int, material: str) -> None:
+        key = (x, y, z)
+        if key not in seen:
+            seen.add(key)
+            blocks.append((x, y, z, material))
+
+    wall = params.wall_material
+
+    # --- the four legs, standing apart all the way to the second platform
+    for y in range(0, p2_y + 1):
+        h = half_at(y)
+        # Leg thickness tapers with the tower so the legs stay in
+        # proportion rather than reading as four heavy pillars up top.
+        t = 1 if h < 4 else 2
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                ox = round(sx * h)
+                oz = round(sz * h)
+                for dx in range(t):
+                    for dz in range(t):
+                        put(ox - sx * dx, y, oz - sz * dz, wall)
+
+    # --- the arch between the legs, under the first platform
+    arch_rise = max(2, round(p1_y * 0.8))
+    for sign in (-1, 1):
+        # The arch springs from the inner face of the legs, not from the
+        # tower's full half-width - run it to the outer face and it puts
+        # stray blocks out past the legs with a gap behind them.
+        edge = max(2, round(half_at(0)) - 2)
+        for i in range(-edge, edge + 1):
+            frac = i / max(1, edge)
+            # Semi-ellipse springing from the legs and peaking at centre.
+            y = round(arch_rise * math.sqrt(max(0.0, 1.0 - frac * frac)))
+            if y <= 0:
+                continue
+            put(i, y, sign * edge, wall)
+            put(sign * edge, y, i, wall)
+
+    # --- platforms: real slabs, wider than the shaft they sit on
+    for level_y, level_half in ((p1_y, p1_half), (p2_y, p2_half), (top_y, top_half)):
+        overhang = 2 if level_y < top_y else 1
+        span = round(half_at(level_y)) + overhang
+        for x in range(-span, span + 1):
+            for z in range(-span, span + 1):
+                put(x, level_y, z, FLOOR_MATERIAL)
+
+    # --- the shaft above the second platform, where the legs have merged
+    for y in range(p2_y + 1, top_y):
+        h = half_at(y)
+        size = max(1, round(h * 2))
+        if size <= 2:
+            for dx in range(-1, 1):
+                for dz in range(-1, 1):
+                    put(dx, y, dz, wall)
+        else:
+            for x, z in _square_outline(0.0, 0.0, size, filled=False):
+                put(x, y, z, wall)
+
+    # --- the top floor's cabin, then the antenna mast
+    for y in range(top_y + 1, top_y + max(2, round(height * 0.05)) + 1):
+        for dx in range(-1, 1):
+            for dz in range(-1, 1):
+                put(dx, y, dz, wall)
+
+    mast_top = height
+    for y in range(top_y + max(2, round(height * 0.05)) + 1, mast_top + 1):
+        put(0, y, 0, wall)
+
+    blocks, width, actual_height, depth = _normalize_bounds(blocks)
+    return blocks, width, actual_height, depth
+
+
 def generate_temple(params: GenerationParams) -> tuple[list[Block], int, int, int]:
     radius = _scale(8, params, minimum=4)
     column_height = _scale(6, params, minimum=3)
@@ -620,6 +732,7 @@ def generate_bridge(params: GenerationParams) -> tuple[list[Block], int, int, in
 GENERATORS = {
     "house": generate_house,
     "tower": generate_tower,
+    "lattice_tower": generate_lattice_tower,
     "temple": generate_temple,
     "wheel": generate_wheel,
     "dome": generate_dome,

@@ -1,0 +1,24 @@
+{
+  "_comment": "Alexandria's Archives raises the overworld build height. The 1:1 Burj Khalifa is 831 blocks tall; vanilla 1.21 tops out at y=319, so it cannot be placed at all without this. min_y + height must stay within the engine's -2032..2032 range and height must be a multiple of 16.",
+  "ultrawarm": false,
+  "natural": true,
+  "piglin_safe": false,
+  "respawn_anchor_works": false,
+  "bed_works": true,
+  "has_raids": true,
+  "has_skylight": true,
+  "has_ceiling": false,
+  "coordinate_scale": 1.0,
+  "ambient_light": 0.0,
+  "monster_spawn_block_light_limit": 0,
+  "monster_spawn_light_level": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 0,
+    "max_inclusive": 7
+  },
+  "min_y": -64,
+  "height": 1024,
+  "logical_height": 1024,
+  "infiniburn": "#minecraft:infiniburn_overworld",
+  "effects": "minecraft:overworld"
+}

@@ -11,7 +11,15 @@ public record PreviewPayload(boolean active, String blueprintID, String blueprin
                              BlockPos origin, int rotation, BlockPos[] blockPositions, String[] blockIDs)
         implements CustomPacketPayload {
     public static final int MAX_BLOCKS = 100_000;
-    public static final int MAX_DIMENSIONS = 512;
+    // Matches the raised overworld height this mod ships; the 1:1 Burj
+    // Khalifa alone is 831 blocks tall.
+    public static final int MAX_DIMENSIONS = 1024;
+
+    // A preview packet must fit inside Minecraft's 1 MiB custom payload cap,
+    // and the renderer stops outlining individual blocks well before that
+    // anyway. Past this count only the bounding box and footprint are sent,
+    // which is all a structure of that size can usefully show.
+    public static final int MAX_PREVIEW_BLOCKS = 6_000;
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(AlexandriaSArchives.MOD_ID,
             "preview");
     public static final Type<PreviewPayload> TYPE = new Type<>(ID);
@@ -24,14 +32,19 @@ public record PreviewPayload(boolean active, String blueprintID, String blueprin
         }
         buf.writeUtf(payload.blueprintID(), 128);
         buf.writeUtf(payload.blueprintName(), 256);
-        buf.writeInt(payload.width());
-        buf.writeInt(payload.height());
-        buf.writeInt(payload.depth());
+        // VarInt on both sides: readDimension() reads these back with
+        // readVarInt, and writeInt's fixed four bytes desynchronised the
+        // whole stream from here on.
+        buf.writeVarInt(payload.width());
+        buf.writeVarInt(payload.height());
+        buf.writeVarInt(payload.depth());
         buf.writeBlockPos(payload.origin());
         buf.writeVarInt(Math.floorMod(payload.rotation(), 4));
         int count = Math.min(payload.blockPositions().length, payload.blockIDs().length);
-        if(count > MAX_BLOCKS) {
-            throw new IllegalArgumentException("Preview contains too many blocks: " + count);
+        if(count > MAX_PREVIEW_BLOCKS) {
+            // Bounds-only preview. The client still receives the dimensions
+            // and origin, so it can draw the box and the ground footprint.
+            count = 0;
         }
         buf.writeVarInt(count);
         for(int i = 0; i < count; i++) {

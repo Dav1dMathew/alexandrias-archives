@@ -32,6 +32,7 @@ public final class BuildManager {
 
     // Registers server tick listener and calls this exactly once during mod initialization.
     public static void initialize() {
+        Scheduler.initialize();
         ServerTickEvents.END_SERVER_TICK.register(BuildManager::tick);
     }
 
@@ -45,13 +46,25 @@ public final class BuildManager {
             job.tick();
             ServerPlayer player = server.getPlayerList().getPlayer(playerID);
 
+            // Drive the progress bar from the job's real position rather than
+            // a timer, so it tracks placement even when the tick rate dips.
+            if(player != null && !job.isFinished() && !job.isCancelled()) {
+                BuildProgressBar.placing(
+                        player,
+                        job.getBlueprint().getName(),
+                        job.getProgress(),
+                        job.getTotalBlocks(),
+                        (float) job.getProgressRatio());
+            }
+
             // Finished Successfully.
             if(job.isFinished()) {
                 LAST_BUILDS.put(playerID, new HashMap<>(job.getOriginalStates()));
                 if(player != null) {
+                    BuildProgressBar.complete(player, job.getBlueprint().getName());
                     player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                            "Alexandria's Archives: " + "Build Job Complete! " + job.getTotalBlocks()
-                                    + "blocks placed."));
+                            "Alexandria's Archives: " + job.getBlueprint().getName() + " complete - "
+                                    + job.getTotalBlocks() + " blocks placed."));
                 }
                 return true;
             }
@@ -60,6 +73,7 @@ public final class BuildManager {
             if(job.isCancelled()) {
                 restore(job.getLevel(), job.getOriginalStates());
                 if(player != null) {
+                    BuildProgressBar.fail(player, "Build cancelled");
                     player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                             "Alexandria's Archives: Build Canceled."));
                 }

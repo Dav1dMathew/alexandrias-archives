@@ -83,7 +83,7 @@ public final class LeaningTowerGenerator {
   }
 
   // Stone Foundation is generated.
-  private static void addFoundation(List<BlueprintBlock> blokcs, int Xcenter, int Zcenter, int radius) {
+  private static void addFoundation(List<BlueprintBlock> blocks, int Xcenter, int Zcenter, int radius) {
     for(int y = 0; y < 2; y++) {
       for(int x = -radius - 1; x <= radius + 1; x++) {
         for(int z = -radius - 1; z <= radius + 1; z++) {
@@ -156,7 +156,7 @@ public final class LeaningTowerGenerator {
   }
 
   // Top Platform is generated.
-  private static void addTop(List<BlueprintBlock> blocks int Xcenter, int Zcenter, int y) {
+  private static void addTop(List<BlueprintBlock> blocks, int Xcenter, int Zcenter, int y) {
     int radius = 4;
     for(int x = -radius; x <= radius; x++) {
       for(int z = -radius; z <= radius; z++) {

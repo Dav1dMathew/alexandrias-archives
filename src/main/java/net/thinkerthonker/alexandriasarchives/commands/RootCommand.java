@@ -4,6 +4,9 @@ import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.thinkerthonker.alexandriasarchives.network.OpenUiPayload;
+import net.thinkerthonker.alexandriasarchives.network.PreviewNetworking;
 
 /**
  * ============================================================================
@@ -44,13 +47,17 @@ public final class RootCommand {
                 Commands.literal("aa")
 
                         // Executes when the player types "/aa"
+                        // "/aa" on its own opens the welcome screen, which is
+                        // where a player picks between the chat commands and
+                        // the guided visual flow.
                         .executes(context -> {
-
-                            context.getSource().sendSuccess(
-                                    () -> Component.literal("Alexandria's Archives Successfully Loaded!"),
-                                    false
-                            );
-
+                            ServerPlayer player = context.getSource().getPlayer();
+                            if (player == null) {
+                                context.getSource().sendSuccess(
+                                        () -> Component.literal("Alexandria's Archives is loaded."), false);
+                                return 1;
+                            }
+                            PreviewNetworking.sendOpenUi(player, OpenUiPayload.WELCOME);
                             return 1;
                         })
 
