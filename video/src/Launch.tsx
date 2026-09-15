@@ -9,23 +9,20 @@ import {
 } from "remotion";
 import { Soundtrack } from "./Soundtrack";
 import { TypedPrompt } from "./cine/TypedPrompt";
-import { Lineup } from "./cine/Lineup";
 import { PhotoPlate } from "./cine/PhotoPlate";
 import { Grain, Glow } from "./cine/Grain";
-import { SplitScreen } from "./cine/SplitScreen";
-import { Immersive } from "./cine/Immersive";
 import { HeadsetView } from "./cine/HeadsetView";
 import { FootagePlate } from "./cine/FootagePlate";
 import { fontStack } from "./theme";
 import { launch } from "./launchTheme";
 
-// The in-VR shot plays its source clip end to end, which needs 10s. Six
-// bars (11.27s) is the smallest whole-bar slot that holds it - anything
-// shorter either truncates the clip or drags every later cut off the beat
-// grid, and that grid is measured off the track, not eyeballed.
-export const VR_SHOT_BARS = 6;
+// The in-VR shot plays its source clip end to end at a touch over 1x -
+// five bars (9.39s) keeps the cut under a minute and on the beat grid,
+// which is measured off the track, not eyeballed.
+export const VR_SHOT_BARS = 5;
 const VR_CLIP_SECONDS = 10;
-export const LAUNCH_FRAMES = 2138; // 71.3s at 30fps
+const STATUE_CLIP_SECONDS = 26.37;
+export const LAUNCH_FRAMES = 1736; // 57.9s at 30fps
 
 // --------------------------------------------------------- beat grid
 //
@@ -35,8 +32,10 @@ export const LAUNCH_FRAMES = 2138; // 71.3s at 30fps
 // Autocorrelating the onset envelope over the post-drop groove gives
 // 127.75 BPM (beat 0.4697s, bar 1.8787s); the grid's 4th beat lands on
 // +16.98s, which independently matches the next big transient at +17.0s.
-export const AUDIO_START_SECONDS = 121; // 2:01
-const DROP_FRAME = 453; // +15.10s at 30fps
+// The intro is 4s tighter than that measurement, so the audio starts 4s
+// later to keep the drop on DROP_FRAME.
+export const AUDIO_START_SECONDS = 125; // 2:05
+const DROP_FRAME = 333; // +11.10s at 30fps
 const BAR_FRAMES = 56.36; // 1.8787s at 30fps
 
 /** Frame of the nth bar line after the drop; negative reaches back. */
@@ -372,7 +371,7 @@ const Introducing: React.FC<{ duration: number; tagline?: string }> = ({
 
 export const Launch: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: launch.bg }}>
-    {/* Starts at 2:01 so the drop lands on DROP_FRAME. Short fade-in only -
+    {/* Starts at 2:05 so the drop lands on DROP_FRAME. Short fade-in only -
         a long one would soften the build into the drop. */}
     <Soundtrack
       src="launch.mp3"
@@ -388,20 +387,20 @@ export const Launch: React.FC = () => (
         Beats: how we recorded buildings -> why that fails to teach ->
         what happens when the building itself is gone. */}
 
-    <Sequence from={0} durationInFrames={172}>
+    <Sequence from={0} durationInFrames={132}>
       <FootagePlate
         src="historian.mp4"
-        duration={172}
+        duration={132}
         headline="For centuries, we recorded buildings on paper."
         headlineY={0.7}
         startAtSeconds={0}
       />
     </Sequence>
 
-    <Sequence from={162} durationInFrames={166}>
+    <Sequence from={122} durationInFrames={126}>
       <FootagePlate
         src="teaching.mp4"
-        duration={166}
+        duration={126}
         headline="But you can’t walk through a diagram."
         headlineY={0.7}
         startAtSeconds={2}
@@ -410,9 +409,9 @@ export const Launch: React.FC = () => (
 
     {/* Lands into the breakdown and clears just before the drop, leaving
         a beat of near-empty frame. */}
-    <Sequence from={318} durationInFrames={140}>
-      <PhotoPlate src="photos/colosseum.jpg" duration={140} zoomFrom={1.06} zoomTo={1.2} dim={0.66} variant="dark" />
-      <Headline text="And the building itself can be lost." duration={140} size={76} accentFrom={3} />
+    <Sequence from={238} durationInFrames={100}>
+      <PhotoPlate src="photos/colosseum.jpg" duration={100} zoomFrom={1.06} zoomTo={1.2} dim={0.66} variant="dark" />
+      <Headline text="And the building itself can be lost." duration={100} size={76} accentFrom={3} />
     </Sequence>
 
     {/* ================= THE DROP - PRODUCT REVEAL (453) =================
@@ -455,19 +454,10 @@ export const Launch: React.FC = () => (
       />
     </Sequence>
 
-    {/* 6 bars - cut to what's actually in the headset */}
-    <Sequence from={bar(6)} durationInFrames={bar(7) - bar(6)}>
-      <Immersive
-        duration={bar(7) - bar(6)}
-        name="dome"
-        caption="VR — on the roadmap"
-      />
-    </Sequence>
-
     {/* 7 bars - describe it, still wearing the headset, so the prompt
         reads as a panel floating in the space rather than a cut to a
         laptop. Types fast and clears as soon as the reply has landed. */}
-    <Sequence from={bar(7)} durationInFrames={bar(10) - bar(7)}>
+    <Sequence from={bar(6)} durationInFrames={bar(8) - bar(6)}>
       <HeadsetView
         continuous
         contentScale={0.84}
@@ -486,10 +476,10 @@ export const Launch: React.FC = () => (
         <TypedPrompt
           command="/aa build the burj khalifa in 2009"
           reply="Supertall tapering tower, Y-shaped plan, stepped setbacks rising to a spire."
-          typeStart={8}
-          charsPerFrame={0.86}
-          replyStart={64}
-          replyCharsPerFrame={1.5}
+          typeStart={4}
+          charsPerFrame={1.3}
+          replyStart={36}
+          replyCharsPerFrame={2.4}
           replyAlign="left"
           replyMaxWidth={400}
         />
@@ -502,7 +492,7 @@ export const Launch: React.FC = () => (
         rather than two screens. The grade is deliberately light - this
         beat's whole point is that it's the game, so washing it fully into
         the palette would throw away the thing being shown. */}
-    <Sequence from={bar(10)} durationInFrames={bar(10 + VR_SHOT_BARS) - bar(10)}>
+    <Sequence from={bar(8)} durationInFrames={bar(8 + VR_SHOT_BARS) - bar(8)}>
       <HeadsetView
         continuous
         contentScale={1.16}
@@ -513,56 +503,57 @@ export const Launch: React.FC = () => (
         // it, so the beat ends on the world rather than on the hardware.
         plateOpacity={1}
         plateOpacityTo={0.42}
-        plateFadeStart={26}
-        plateFadeEnd={132}
+        plateFadeStart={20}
+        plateFadeEnd={100}
       >
         <FootagePlate
           src="vr_build.mp4"
-          duration={bar(10 + VR_SHOT_BARS) - bar(10)}
+          duration={bar(8 + VR_SHOT_BARS) - bar(8)}
           startAtSeconds={0}
           // 10s of source stretched across 11.27s of slot. The slight
           // slow motion fills the bars exactly rather than freezing on the
           // last frame for the remainder.
-          playbackRate={VR_CLIP_SECONDS / ((bar(10 + VR_SHOT_BARS) - bar(10)) / 30)}
+          playbackRate={VR_CLIP_SECONDS / ((bar(8 + VR_SHOT_BARS) - bar(8)) / 30)}
           grade={0.3}
         />
       </HeadsetView>
     </Sequence>
 
-    {/* 16 bars - two views of one engine, side by side */}
-    <Sequence from={bar(16)} durationInFrames={bar(20) - bar(16)}>
-      <SplitScreen
-        duration={bar(20) - bar(16)}
-        headset
-        size={620}
-        left={{ name: "eiffel", label: "Generating", caption: "Eiffel Tower" }}
-        right={{ name: "burj", label: "Timeline", years: [2004, 2006, 2008, 2010] }}
-      />
-    </Sequence>
-
-    {/* 14 bars - the range */}
-    <Sequence from={bar(20)} durationInFrames={bar(24) - bar(20)}>
-      <Lineup
-        duration={bar(24) - bar(20)}
-        headline="Not one shape. Any shape."
-        stagger={14}
-        entries={[
-          { name: "concorde", label: "Concorde", size: 480 },
-          { name: "boeing747", label: "Boeing 747", size: 480 },
-          { name: "whitehouse", label: "The White House", size: 480 },
-          { name: "eye", label: "London Eye", size: 480 },
-        ]}
-      />
+    {/* 16 bars - the Statue of Liberty weathering, seen from inside the
+        headset. The shell fades almost fully out so the copper turning
+        green is what the viewer is actually watching. */}
+    <Sequence from={bar(13)} durationInFrames={bar(19) - bar(13)}>
+      <HeadsetView
+        continuous
+        contentScale={1.02}
+        warp={70}
+        focusPull={false}
+        caption="Weathering in real time"
+        plateOpacity={0.7}
+        plateOpacityTo={0.1}
+        plateFadeStart={8}
+        plateFadeEnd={60}
+      >
+        <FootagePlate
+          src="statue_age.mp4"
+          duration={bar(19) - bar(13)}
+          startAtSeconds={0}
+          // The 26s recording runs ~2.3x so the whole brown-to-green
+          // oxidation lands inside the slot.
+          playbackRate={STATUE_CLIP_SECONDS / ((bar(19) - bar(13)) / 30)}
+          grade={0.08}
+        />
+      </HeadsetView>
     </Sequence>
 
     {/* 18 bars - trust */}
-    <Sequence from={bar(24)} durationInFrames={bar(27) - bar(24)}>
-      <Trust duration={bar(27) - bar(24)} />
+    <Sequence from={bar(19)} durationInFrames={bar(22) - bar(19)}>
+      <Trust duration={bar(22) - bar(19)} />
     </Sequence>
 
     {/* 21 bars - close out the remaining frames */}
-    <Sequence from={bar(27)} durationInFrames={LAUNCH_FRAMES - bar(27)}>
-      <Close duration={LAUNCH_FRAMES - bar(27)} />
+    <Sequence from={bar(22)} durationInFrames={LAUNCH_FRAMES - bar(22)}>
+      <Close duration={LAUNCH_FRAMES - bar(22)} />
     </Sequence>
 
     {/* Grain sits above everything so it films the whole frame */}

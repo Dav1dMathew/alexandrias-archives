@@ -47,6 +47,36 @@ Three services speak a shared JSON **Blueprint** contract:
 
 The mod then validates the blueprint (`BlueprintValidator`) against sane size/block-count limits, and places it into the world in rate-limited batches (`BuildJob`) so large AI-generated builds don't freeze the server.
 
+### Curated landmarks (fast path)
+
+Before a prompt ever reaches the AI service, `LandmarkRegistry` checks whether it names a known landmark (longest alias first, anywhere in the prompt). If it does, the mod loads a hand-picked, real-scale community build straight from `src/main/resources/data/alexandriasarchives/landmarks/` instead of generating one.
+
+| Landmark | Author |
+|---|---|
+| Eiffel Tower | tempis335 |
+| Burj Khalifa (831 blocks tall) | DBYT |
+| Leaning Tower of Pisa | The_Fox |
+| Concorde | TheOfficialNano |
+
+All four are Planet Minecraft builds, credited in [`CREDITS.md`](CREDITS.md). `tools/convert_landmarks.py` normalises Sponge `.schem`, legacy MCEdit `.schematic` and Anvil world saves into one gzipped NBT layout (only non-air blocks are stored).
+
+- **Paced placement** — `BuildJob` adapts blocks-per-tick to a target duration, so a 2.5k-block Concorde and a 326k-block Burj Khalifa both read as the same block-by-block assembly, tracked by a boss bar.
+- **Raised build height** — a dimension type override takes the overworld to `y = -64..959`, since the 1:1 Burj Khalifa can't fit under vanilla's 319 ceiling. **New worlds only.**
+
+### Guided UI
+
+Press **G** (or run `/aa`) for a welcome screen → prompt popup → placement preview. The preview is a HUD overlay rather than a screen, so the player can still walk around while positioning it:
+
+| Key | Action |
+|---|---|
+| Arrow keys | Move the footprint |
+| R | Rotate 90° |
+| Page Up / Page Down | Raise / lower |
+| Enter | Build it |
+| Backspace | Cancel |
+
+The preview outline and the final build share one transform (`BlueprintTransform`), so what you position is exactly where the structure lands. Every UI action routes back through the same commands, so the server stays authoritative.
+
 ### Reconstruction tiers
 
 The AI service builds up reconstruction fidelity in tiers rather than attempting full photo-to-3D reconstruction in one leap:
@@ -61,8 +91,15 @@ The AI service builds up reconstruction fidelity in tiers rather than attempting
 alexandrias-archives/
 ├── src/main/java/.../alexandriasarchives/
 │   ├── commands/       # /aa, /aa build, /aa image, /aa history, /aa photo
-│   ├── builder/         # BlueprintValidator, StructureBuilder, BuildJob (tick-batched placement)
+│   ├── builder/         # BlueprintValidator, StructureBuilder, BuildJob, BlueprintTransform, boss bar
+│   ├── service/         # LandmarkRegistry (prompt matching), LandmarkLibrary (NBT loading)
+│   ├── network/         # preview + UI payloads between client and server
+│   ├── client/          # welcome/prompt screens, preview HUD, renderer and key input
 │   └── model/            # Blueprint, BlueprintBlock — the shared structure format
+├── src/main/resources/data/alexandriasarchives/landmarks/  # curated landmark .nbt models
+├── tools/convert_landmarks.py   # schematic / world save → landmark .nbt
+├── backend/             # Spring Boot orchestration service
+├── video/               # Remotion launch video
 ├── ai-service/          # Python FastAPI reconstruction service
 │   ├── main.py           # GET /health, POST /generate (Tier 0), POST /analyze (Tier 1 stub)
 │   ├── generation/        # prompt parsing + procedural blueprint generators
@@ -81,7 +118,30 @@ See the [Fabric documentation](https://docs.fabricmc.net/develop/getting-started
 ./gradlew runClient
 ```
 
-Once in a world, `/aa build demo` places a small hardcoded structure so you can confirm the pipeline works end-to-end.
+Once in a world, `/aa build demo` places a small hardcoded structure so you can confirm the pipeline works end-to-end. Try `/aa build the eiffel tower` (or press **G**) for a curated landmark — create a **new** world first so the raised height limit applies.
+
+Requires **JDK 21**. On macOS: `brew install openjdk@21`.
+
+### Launch video (Remotion)
+
+A 58-second, beat-synced launch cut lives in [`video/`](video):
+
+```bash
+cd video
+npm install
+npx remotion studio          # live preview
+npx remotion render src/index.ts Launch out/launch.mp4
+```
+
+The `Launch` composition (`video/src/Launch.tsx`) is cut to a bar grid measured off the soundtrack (127.75 BPM, drop at 11.1s):
+
+1. **The problem** — real footage: buildings recorded on paper, diagrams you can't walk through, buildings that get lost
+2. **Reveal** — the Alexandria's Archives wordmark lands on the drop
+3. **Step inside** — a headset goes on; a prompt is typed inside the VR view; the structure generates in-world
+4. **Weathering in real time** — in-game recording of the Statue of Liberty oxidising from copper to green, seen through a faded headset frame
+5. **Trust** and **close**
+
+Music, photography and footage credits (some are licence conditions for publishing) are in [`video/CREDITS.md`](video/CREDITS.md).
 
 ### AI service
 
@@ -109,7 +169,7 @@ same JSON request as the AI service and proxies its Blueprint response. Set
 
 ## Status
 
-This is an early-stage, in-progress project. The mod can validate and place a hardcoded demo structure. The AI service's Tier 0 prompt-to-blueprint generation is real and working (`/generate`), producing distinct houses, towers, and temples from free-text prompts — but the mod and the AI/backend services aren't wired together yet, `/analyze` (photo input) is still a mock, and the real photogrammetry-based reconstruction doesn't exist. See the project's weekly goals for the current roadmap.
+This is an early-stage, in-progress project, and the Minecraft mod is a **low-fidelity prototype** of the experience, not the final product. The mod can place four curated real-scale landmarks through a guided UI with a live placement preview, as well as a hardcoded demo structure. The AI service's Tier 0 prompt-to-blueprint generation is real and working (`/generate`), producing distinct houses, towers, and temples from free-text prompts — but the mod and the AI/backend services aren't wired together yet, `/analyze` (photo input) is still a mock, and the real photogrammetry-based reconstruction doesn't exist. See the project's weekly goals for the current roadmap.
 
 ## Team
 

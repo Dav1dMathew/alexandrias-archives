@@ -42,6 +42,13 @@ Real landmark and archive photography from **Wikimedia Commons**, used in the
 Machine-readable details, including the Commons file page for each image, are in
 `public/photos/credits.json`.
 
+## Gameplay footage
+
+`public/statue_age.mp4` is a screen recording of the mod's dev client
+showing the Statue of Liberty weathering from bare copper
+to green. The statue model is a community build by **Avalanche_Ali** (Planet
+Minecraft) - credit them wherever the launch cut is published.
+
 ## Everything else
 
 All remaining visuals are original to this project:
